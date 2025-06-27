@@ -18,6 +18,8 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 interface NavMainProps {
   items: {
@@ -47,9 +49,9 @@ export function NavMain({ items }: NavMainProps) {
                     <span>{item.title}</span>
                   </CollapsibleTrigger>
                 ) : (
-                  <a href={item.url}>
+                  <Link to={item.url} className="cursor-pointer">
                     <span>{item.title}</span>
-                  </a>
+                  </Link>
                 )}
               </SidebarMenuButton>
               {item.items?.length ? (
@@ -65,9 +67,9 @@ export function NavMain({ items }: NavMainProps) {
                       {item.items?.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
                           <SidebarMenuSubButton asChild>
-                            <a href={subItem.url}>
+                            <Link to={subItem.url} className="cursor-pointer">
                               <span>{subItem.title}</span>
-                            </a>
+                            </Link>
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       ))}

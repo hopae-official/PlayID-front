@@ -17,21 +17,9 @@ import "@xyflow/react/dist/style.css";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerClose,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
-import {
   CalendarIcon,
   ChevronDownIcon,
   ClipboardPlus,
-  EllipsisIcon,
-  Paperclip,
   ScanLine,
   Settings,
   XIcon,
@@ -81,7 +69,7 @@ import CustomControls, {
   type CustomControlMenuType,
 } from "@/components/Bracket/CustomControls";
 import { useExpandStore } from "@/stores/expand";
-import MatchResultDrawer from "./MatchResultDrawer";
+import MatchResultDrawer from "@/components/Bracket/MatchResultDrawer";
 
 export type Match = {
   id: string;
@@ -98,11 +86,14 @@ export type Match = {
   isSettingNode?: boolean;
   isThirdPlace?: boolean;
   result?: {
-    winner?: Competitor;
-    image?: string;
-    point?: number;
-    place?: number;
-  }[];
+    description?: string;
+    setResult?: {
+      winner?: Competitor;
+      image?: string;
+      point?: number;
+      place?: number;
+    }[];
+  };
 };
 
 export type MatchSetting = {
@@ -1091,7 +1082,7 @@ const useSingleEliminationBracketNodesEdges = (matches: Match[]) => {
               source: prevId,
               target: match.id,
               type: "smoothstep",
-              style: { stroke: "#475569", strokeWidth: 2 },
+              style: { stroke: "#27272A", strokeWidth: 6 },
               sourceHandle: "source",
               targetHandle: "target",
             });
@@ -1460,6 +1451,12 @@ const MatchNode = ({
     </DialogContent>
   );
 
+  const lastRound = useMemo(() => {
+    const rounds = matches.map((m) => m.round);
+    const maxRound = Math.max(...rounds);
+    return maxRound;
+  }, [matches]);
+
   if (match.isSettingNode) {
     return (
       <div className="min-w-[200px]">
@@ -1608,9 +1605,7 @@ const MatchNode = ({
         </div>
       )}
 
-      {boardType === BOARD_TYPE.RESULT && (
-        <MatchResultDrawer match={match} boardType={boardType} />
-      )}
+      {boardType === BOARD_TYPE.RESULT && <MatchResultDrawer match={match} />}
 
       <div className="space-y-1">
         {match.participants &&
@@ -1618,12 +1613,55 @@ const MatchNode = ({
             <div
               key={idx}
               className={`h-10 flex items-center justify-between p-2 rounded ${
-                participant.name ? "bg-zinc-950" : "bg-zinc-900"
+                match.winner
+                  ? match.winner === participant.id
+                    ? "bg-zinc-950 text-white"
+                    : "bg-zinc-900 text-zinc-400"
+                  : participant.name
+                  ? "bg-zinc-950"
+                  : "bg-zinc-900"
+              } ${
+                match.round === lastRound &&
+                match.winner &&
+                (match.winner === participant.id
+                  ? "border border-yellow-200"
+                  : "border border-sky-200")
               }`}
             >
               <span className="font-medium">
                 {participant.name || <span className="opacity-50"></span>}
               </span>
+              {match.result &&
+                match.result.setResult &&
+                match.result.setResult.length > 0 && (
+                  <div className="flex items-center gap-4">
+                    {match.round === lastRound && (
+                      <span
+                        className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
+                        ${
+                          match.winner === participant.id
+                            ? "bg-yellow-400 text-yellow-600"
+                            : "bg-sky-400 text-sky-600"
+                        }`}
+                      >
+                        {match.winner === participant.id ? "1" : "2"}
+                      </span>
+                    )}
+                    <span
+                      className={`text-sm ${
+                        match.winner === participant.id
+                          ? "text-white"
+                          : "text-zinc-400"
+                      }`}
+                    >
+                      {
+                        match.result.setResult.filter(
+                          (r) => r.winner?.id === participant.id
+                        ).length
+                      }
+                    </span>
+                  </div>
+                )}
             </div>
           ))}
       </div>
@@ -1738,6 +1776,7 @@ const BracketBoard = ({
 }: BracketBoardProps) => {
   const navigate = useNavigate();
   const { isExpand } = useExpandStore();
+  const { setGlobalStage } = useStageStore();
   const [groups, setGroups] = useState<Group[]>(
     stage.groups.length > 0
       ? stage.groups
@@ -1801,8 +1840,6 @@ const BracketBoard = ({
   const handleDeleteBracket = () => {
     onDeleteBracket?.();
   };
-
-  const { setGlobalStage } = useStageStore();
 
   const handleSaveBracket = () => {
     setGlobalStage({
