@@ -359,7 +359,7 @@ const checkMinimumRemainingTeams = (
   return true;
 };
 
-const BracketCreate = () => {
+const BracketEdit = () => {
   const navigate = useNavigate();
   const { isExpand } = useExpandStore();
   const stageNameRef = useRef<HTMLInputElement>(null);
@@ -847,4 +847,4 @@ const BracketCreate = () => {
   );
 };
 
-export default BracketCreate;
+export default BracketEdit;

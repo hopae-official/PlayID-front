@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { TabsList } from "@radix-ui/react-tabs";
 import { PlusIcon, XIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useStageStore } from "@/stores/stage";
+import BracketBoard, { BOARD_TYPE } from "./BracketBoard";
+import { type CustomControlMenuType } from "@/components/Bracket/CustomControls";
+import { useSidebar } from "@/components/ui/sidebar";
 
 interface BracketSheetProps {
   game: Game;
@@ -14,14 +18,19 @@ interface BracketSheetProps {
 
 const BracketSheet = ({
   game,
-
   onAddSheet,
   onDeleteSheet,
 }: BracketSheetProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [sheets, setSheets] = useState<Sheet[]>(game.sheets);
   const [selectedSheet, setSelectedSheet] = useState<Sheet>(sheets[0]);
   const [isFinishRoster, setIsFinishRoster] = useState(true);
+  const { globalStage, setGlobalStage } = useStageStore();
+  const [selectedGroupId, setSelectedGroupId] = useState(
+    globalStage?.groups[0]?.id
+  );
+  const { toggleSidebar } = useSidebar();
 
   useEffect(() => {
     const prevIds = sheets.map((s) => s.id);
@@ -57,6 +66,28 @@ const BracketSheet = ({
   const handleDeleteSheet = (id: string) => {
     onDeleteSheet?.(id);
   };
+
+  const handleChangeGroupTab = (groupId: string) => {
+    setSelectedGroupId(groupId);
+  };
+
+  const handleClickControls = (menu: CustomControlMenuType) => {
+    switch (menu) {
+      case "EXPAND":
+        toggleSidebar();
+        break;
+      case "EDIT":
+        navigate(`/bracket/create/${selectedSheet.id}`);
+        break;
+      case "DELETE":
+        setGlobalStage(null);
+        break;
+      default:
+        break;
+    }
+  };
+
+  console.log("globalStage", globalStage);
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -120,39 +151,53 @@ const BracketSheet = ({
         </TabsList>
         <TabsContent
           value={selectedSheet.id}
-          className="flex h-full flex-col justify-center items-center rounded-md"
+          className="flex h-full flex-col justify-center items-center rounded-b-md rounded-tr-md"
         >
-          <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-[#18181B] rounded-b-md rounded-tr-md">
-            <div className="text-2xl font-semibold">
-              {isFinishRoster
-                ? "대진표를 생성하시겠어요?"
-                : "로스터 확정이 되지 않았어요"}
+          {globalStage ? (
+            <BracketBoard
+              stage={globalStage}
+              selectedGroupId={selectedGroupId}
+              boardType={
+                location.pathname.includes("result")
+                  ? BOARD_TYPE.RESULT
+                  : BOARD_TYPE.SHOW
+              }
+              onChangeGroupTab={handleChangeGroupTab}
+              onClickControls={handleClickControls}
+            />
+          ) : (
+            <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md">
+              <div className="text-2xl font-semibold">
+                {isFinishRoster
+                  ? "대진표를 생성하시겠어요?"
+                  : "로스터 확정이 되지 않았어요"}
+              </div>
+              <div className="text-sm text-muted-foreground mt-2">
+                {isFinishRoster
+                  ? "마지막 로스터 확정: 2025-06-16 12:00:00"
+                  : "대진표 생성은 로스터 확정 후에 가능해요."}
+              </div>
+              {isFinishRoster ? (
+                <Button
+                  className="mt-6 cursor-pointer"
+                  size="lg"
+                  onClick={() => {
+                    navigate(`/bracket/create/${selectedSheet.id}`);
+                  }}
+                >
+                  대진표 생성
+                </Button>
+              ) : (
+                <Button
+                  className="mt-6 cursor-pointer bg-zinc-950 text-zinc-100 border-zinc-800 hover:bg-zinc-800"
+                  size="lg"
+                  onClick={() => setIsFinishRoster(true)}
+                >
+                  로스터 확정하러 가기
+                </Button>
+              )}
             </div>
-            <div className="text-sm text-muted-foreground mt-2">
-              {isFinishRoster
-                ? "마지막 로스터 확정: 2025-06-16 12:00:00"
-                : "대진표 생성은 로스터 확정 후에 가능해요."}
-            </div>
-            {isFinishRoster ? (
-              <Button
-                className="mt-6 cursor-pointer"
-                size="lg"
-                onClick={() => {
-                  navigate(`/bracket/create/${selectedSheet.id}`);
-                }}
-              >
-                대진표 생성
-              </Button>
-            ) : (
-              <Button
-                className="mt-6 cursor-pointer bg-zinc-950 text-zinc-100 border-zinc-800 hover:bg-zinc-800"
-                size="lg"
-                onClick={() => setIsFinishRoster(true)}
-              >
-                로스터 확정하러 가기
-              </Button>
-            )}
-          </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -5,9 +5,8 @@ import MainLayout from "./layout/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import Bracket from "./pages/Bracket/index";
 import BracketCreate from "./pages/Bracket/BracketCreate";
-import BracketTest from "./pages/Bracket/BracketTest";
-import BracketTest2 from "./pages/Bracket/BracketTest2";
 import { Toaster } from "@/components/ui/sonner";
+import Result from "./pages/Result";
 
 function App() {
   return (
@@ -17,10 +16,10 @@ function App() {
           <Route path="/" element={<MainLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/bracket" element={<Bracket />} />
+            <Route path="/result" element={<Result />} />
           </Route>
           <Route path="/bracket/create" element={<BracketCreate />} />
           <Route path="/bracket/create/:id" element={<BracketCreate />} />
-          <Route path="/bracket/test" element={<BracketTest />} />
           <Route
             path="/sign-in"
             element={<SignIn path="/sign-in" signUpUrl="/sign-up" />}

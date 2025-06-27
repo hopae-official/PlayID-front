@@ -13,6 +13,8 @@ import { TabsList } from "@radix-ui/react-tabs";
 import BracketSheet from "./BracketSheet";
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { useStageStore } from "@/stores/stage";
+import { useExpandStore } from "@/stores/expand";
 
 export type Sheet = {
   id: string;
@@ -26,6 +28,7 @@ export type Game = {
 };
 
 const Bracket = () => {
+  const { isExpand } = useExpandStore();
   const [selectedGame, setSelectedGame] = useState<Game | null>({
     id: "lol",
     name: "리그오브레전드",
@@ -122,7 +125,11 @@ const Bracket = () => {
 
   return (
     <SidebarInset>
-      <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+      <header
+        className={`flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 ${
+          isExpand ? "hidden" : "block"
+        }`}
+      >
         <div className="flex items-center gap-2 px-4">
           <SidebarTrigger className="-ml-1" />
           <Separator
@@ -144,7 +151,11 @@ const Bracket = () => {
           </Breadcrumb>
         </div>
       </header>
-      <div className="flex h-full flex-1 flex-col gap-4 p-4 pt-0">
+      <div
+        className={`flex h-full flex-1 flex-col gap-4 p-4 ${
+          isExpand ? "pt-4" : "pt-0"
+        }`}
+      >
         <Tabs
           defaultValue={selectedGame?.id}
           className="h-full"
@@ -152,7 +163,7 @@ const Bracket = () => {
             setSelectedGame(games.find((game) => game.id === value) || null);
           }}
         >
-          <TabsList>
+          <TabsList className={`${isExpand ? "hidden" : "block"}`}>
             {games.map((game) => (
               <TabsTrigger key={game.id} value={game.id}>
                 {game.name}
