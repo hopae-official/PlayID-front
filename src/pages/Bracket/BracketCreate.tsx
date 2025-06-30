@@ -424,7 +424,11 @@ const BracketCreate = () => {
   };
 
   const handleAssignBracket = (competitors: Competitor[]) => {
+    console.log("superstage", stage);
+
     if (stage.groups.length > 0) {
+      console.log("여기");
+
       dispatch({
         type: "SET_ASSIGN_GROUPS_COMPETITORS",
         payload: stage.groups.map((group) =>
@@ -440,6 +444,8 @@ const BracketCreate = () => {
         ),
       });
     } else {
+      console.log("여기2");
+
       dispatch({ type: "SET_ASSIGN_COMPETITORS", payload: competitors });
     }
   };

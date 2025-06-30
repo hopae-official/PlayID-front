@@ -90,6 +90,8 @@ export type Match = {
     setResult?: {
       winner?: Competitor;
       image?: string;
+      id?: string;
+      name?: string;
       point?: number;
       place?: number;
     }[];
@@ -957,15 +959,20 @@ const generateFreeForAllMatches = (
   participants: Competitor[],
   totalRounds: number
 ): Match[] => {
-  return Array.from({ length: totalRounds }, (_, i) => ({
-    id: uuidv4(),
-    name: `Match ${i + 1}`,
-    round: i + 1,
-    participants: participants.map(({ id, name }) => ({
-      id,
-      name: i === 0 ? name || "" : "",
-    })),
-  }));
+  return Array.from(
+    {
+      length: totalRounds,
+    },
+    (_, i) => ({
+      id: uuidv4(),
+      name: `Match ${i + 1}`,
+      round: i + 1,
+      participants: participants.map(({ id, name }) => ({
+        id,
+        name: name || "",
+      })),
+    })
+  );
 };
 
 // 3. 라운드별로 매치 그룹화
@@ -1094,61 +1101,100 @@ const useSingleEliminationBracketNodesEdges = (matches: Match[]) => {
   return { nodes, edges };
 };
 
-const useFreeForAllBracketNodesEdges = (matches: Match[]) => {
-  const settingNodes = matches.filter((m) => m.isSettingNode);
-  const gameNodes = matches.filter((m) => !m.isSettingNode && !m.isThirdPlace);
-
-  const rounds = groupMatchesByRound(gameNodes);
+const useFreeForAllBracketNodesEdges = (
+  matches: Match[],
+  boardType: BoardType
+) => {
   const columnWidth = 300;
   const rowHeight = 180;
   const nodes: Node[] = [];
   const nodeYMap: Record<string, number> = {};
+  const rounds = groupMatchesByRound(matches);
 
-  Object.entries(rounds).forEach(([roundStr, roundMatches]) => {
-    const round = Number(roundStr);
-    if (round === 1) {
-      // 1라운드: 등간격
-      roundMatches.forEach((match: Match, idx: number) => {
-        nodeYMap[match.id] = rowHeight;
-        nodes.push({
-          id: match.id,
-          type: "matchNode",
-          data: match,
-          position: {
-            x: (round - 1) * columnWidth,
-            y: rowHeight,
-          },
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
-          draggable: false,
-        });
-      });
-    } else {
-      // 2라운드 이상: prevMatchIds의 y좌표 평균
-      roundMatches.forEach((match: Match) => {
-        nodeYMap[match.id] = rowHeight;
-        nodes.push({
-          id: match.id,
-          type: "matchNode",
-          data: match,
-          position: {
-            x: (round - 1) * columnWidth,
-            y: rowHeight,
-          },
-          sourcePosition: Position.Right,
-          targetPosition: Position.Left,
-          draggable: false,
-        });
-      });
+  const setResult = matches
+    .filter((m) => !m.isSettingNode && !m.isThirdPlace)
+    .map((m) => m.result?.setResult)
+    .flat();
+
+  const setResultAcc = setResult.reduce((acc, curr) => {
+    if (curr && curr.id) {
+      acc[curr.id] = (acc[curr.id] ?? 0) + (curr.point ?? 0);
     }
-  });
+    return acc as Record<string, number>;
+  }, {} as Record<string, number>);
 
-  settingNodes.forEach((match) => {
+  const participants = matches.filter(
+    (m) => !m.isSettingNode && !m.isThirdPlace
+  )[0]?.participants;
+
+  const totalResult = Object.entries(setResultAcc)
+    .map(([id, point]) => ({
+      id,
+      name: participants?.find((p) => p.id === id)?.name || "",
+      point,
+    }))
+    .sort((a, b) => b.point - a.point);
+
+  const gameNodes =
+    boardType === BOARD_TYPE.RESULT
+      ? [
+          ...matches.filter((m) => !m.isSettingNode && !m.isThirdPlace),
+          {
+            id: uuidv4(),
+            round: Math.max(...Object.keys(rounds).map(Number)) + 1,
+            name: "Total",
+            participants: matches.filter(
+              (m) => !m.isSettingNode && !m.isThirdPlace
+            )[0].participants,
+            result: {
+              setResult: totalResult,
+            },
+          },
+        ]
+      : matches.filter((m) => !m.isSettingNode && !m.isThirdPlace);
+
+  const settingNodes =
+    boardType === BOARD_TYPE.RESULT
+      ? [
+          ...matches.filter((m) => m.isSettingNode),
+          {
+            id: uuidv4(),
+            round: Math.max(...Object.keys(rounds).map(Number)) + 1,
+            name: "Total",
+            isSettingNode: true,
+          },
+        ]
+      : matches.filter((m) => m.isSettingNode);
+
+  gameNodes.forEach((match: Match, idx: number) => {
+    nodeYMap[match.id] = rowHeight;
     nodes.push({
       id: match.id,
       type: "matchNode",
       data: match,
-      position: { x: (match.round - 1) * columnWidth, y: 100 },
+      position: {
+        x:
+          idx === (boardType === BOARD_TYPE.RESULT ? gameNodes.length - 1 : 0)
+            ? (match.round - 1) * columnWidth + 100
+            : (match.round - 1) * columnWidth,
+        y: rowHeight,
+      },
+      draggable: false,
+    });
+  });
+
+  settingNodes.forEach((match, idx: number) => {
+    nodes.push({
+      id: match.id,
+      type: "matchNode",
+      data: match,
+      position: {
+        x:
+          idx === settingNodes.length - 1
+            ? (match.round - 1) * columnWidth + 100
+            : (match.round - 1) * columnWidth,
+        y: 100,
+      },
       draggable: false,
     });
   });
@@ -1160,18 +1206,19 @@ const useFreeForAllBracketNodesEdges = (matches: Match[]) => {
 const MatchNode = ({
   match,
   matches,
-  onSubmit,
   boardType,
+  stage,
+  onSubmit,
 }: {
   match: Match;
   matches: Match[];
   boardType: BoardType;
+  stage: Stage;
   onSubmit: (data: { id: string; setting: MatchSetting }) => void;
 }) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const matchResults =
-    match.setType === "single" ? 1 : match.setType === "best-of-three" ? 3 : 5;
+
   const { register, watch, setValue, handleSubmit, reset } =
     useForm<MatchSetting>();
 
@@ -1536,8 +1583,20 @@ const MatchNode = ({
       </div>
     );
   }
+
   return (
-    <div className="min-w-[200px] p-2 rounded-md bg-zinc-800 border border-zinc-700">
+    <div className="min-w-[200px] p-2 rounded-md bg-zinc-800 border border-zinc-700 relative">
+      {/* Total 노드에만 왼쪽 vertical line 추가 */}
+      {boardType === BOARD_TYPE.RESULT && match.name === "Total" && (
+        <div
+          className="absolute left-0 top-0 w-[1px] bg-zinc-400/30 rounded"
+          style={{
+            height: "calc(100% + 130px)",
+            bottom: "8px",
+            transform: "translateX(-80px) translateY(-80px)",
+          }}
+        />
+      )}
       {match.round !== 1 && (
         <Handle
           type="target"
@@ -1605,66 +1664,97 @@ const MatchNode = ({
         </div>
       )}
 
-      {boardType === BOARD_TYPE.RESULT && <MatchResultDrawer match={match} />}
+      {boardType === BOARD_TYPE.RESULT && match.name !== "Total" && (
+        <MatchResultDrawer match={match} />
+      )}
 
-      <div className="space-y-1">
-        {match.participants &&
-          match.participants.map((participant, idx) => (
-            <div
-              key={idx}
-              className={`h-10 flex items-center justify-between p-2 rounded ${
-                match.winner
-                  ? match.winner === participant.id
-                    ? "bg-zinc-950 text-white"
-                    : "bg-zinc-900 text-zinc-400"
-                  : participant.name
-                  ? "bg-zinc-950"
-                  : "bg-zinc-900"
-              } ${
-                match.round === lastRound &&
-                match.winner &&
-                (match.winner === participant.id
-                  ? "border border-yellow-200"
-                  : "border border-sky-200")
-              }`}
-            >
-              <span className="font-medium">
-                {participant.name || <span className="opacity-50"></span>}
-              </span>
-              {match.result &&
-                match.result.setResult &&
-                match.result.setResult.length > 0 && (
-                  <div className="flex items-center gap-4">
-                    {match.round === lastRound && (
-                      <span
-                        className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
+      {stage.bracketType === "single" && (
+        <div className="space-y-1">
+          {match.participants &&
+            match.participants.map((participant, idx) => (
+              <div
+                key={idx}
+                className={`h-10 flex items-center justify-between p-2 rounded ${
+                  match.winner
+                    ? match.winner === participant.id
+                      ? "bg-zinc-950 text-white"
+                      : "bg-zinc-900 text-zinc-400"
+                    : participant.name
+                    ? "bg-zinc-950"
+                    : "bg-zinc-900"
+                } ${
+                  match.round === lastRound &&
+                  match.winner &&
+                  (match.winner === participant.id
+                    ? "border border-yellow-200"
+                    : "border border-sky-200")
+                }`}
+              >
+                <span className="font-medium">
+                  {participant.name || <span className="opacity-50"></span>}
+                </span>
+                {match.result &&
+                  match.result.setResult &&
+                  match.result.setResult.length > 0 && (
+                    <div className="flex items-center gap-4">
+                      {match.round === lastRound && (
+                        <span
+                          className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
                         ${
                           match.winner === participant.id
                             ? "bg-yellow-400 text-yellow-600"
                             : "bg-sky-400 text-sky-600"
                         }`}
+                        >
+                          {match.winner === participant.id ? "1" : "2"}
+                        </span>
+                      )}
+                      <span
+                        className={`text-sm ${
+                          match.winner === participant.id
+                            ? "text-white"
+                            : "text-zinc-400"
+                        }`}
                       >
-                        {match.winner === participant.id ? "1" : "2"}
+                        {
+                          match.result.setResult.filter(
+                            (r) => r.winner?.id === participant.id
+                          ).length
+                        }
                       </span>
-                    )}
-                    <span
-                      className={`text-sm ${
-                        match.winner === participant.id
-                          ? "text-white"
-                          : "text-zinc-400"
-                      }`}
-                    >
-                      {
-                        match.result.setResult.filter(
-                          (r) => r.winner?.id === participant.id
-                        ).length
-                      }
-                    </span>
-                  </div>
-                )}
-            </div>
-          ))}
-      </div>
+                    </div>
+                  )}
+              </div>
+            ))}
+        </div>
+      )}
+
+      {stage.bracketType === "free" && (
+        <div className="space-y-1">
+          {(match.result?.setResult?.length
+            ? match.result.setResult
+            : match.participants
+          )?.map((participant, idx) => {
+            const point =
+              match.result?.setResult?.find?.((r) => r.id === participant.id)
+                ?.point ?? "";
+            return (
+              <div
+                key={participant.id ?? idx}
+                className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
+              >
+                <span className="font-medium">
+                  {participant.name || <span className="opacity-50"></span>}
+                </span>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm">{point}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {match.round && !match.isThirdPlace && (
         <Handle
           type="source"
@@ -1716,7 +1806,7 @@ const buildFreeForAllBracket = (
   const matchSettingNodes = uniqueRounds.map((round) => ({
     id: uuidv4(),
     round,
-    name: round === uniqueRounds.length ? "Final Round" : `Round ${round}`,
+    name: `Round ${round}`,
     isSettingNode: true,
   }));
   return [...matchSettingNodes, ...initialMatches];
@@ -1864,6 +1954,7 @@ const BracketBoard = ({
                 []
               : groups[0].matches
           }
+          stage={stage}
           boardType={boardType}
           onSubmit={handleMatchSubmit}
         />
@@ -1876,9 +1967,10 @@ const BracketBoard = ({
     stage.bracketType === "free"
       ? groups.length > 1
         ? useFreeForAllBracketNodesEdges(
-            groups.find((group) => group.id === selectedGroupId)?.matches || []
+            groups.find((group) => group.id === selectedGroupId)?.matches || [],
+            boardType
           )
-        : useFreeForAllBracketNodesEdges(groups[0].matches)
+        : useFreeForAllBracketNodesEdges(groups[0].matches, boardType)
       : groups.length > 1
       ? useSingleEliminationBracketNodesEdges(
           groups.find((group) => group.id === selectedGroupId)?.matches || []
