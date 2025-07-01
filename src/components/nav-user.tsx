@@ -25,7 +25,9 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SignOutButton } from "@clerk/clerk-react";
+import { useClerk } from "@clerk/clerk-react";
+import { useNavigate } from "react-router-dom";
+import { removeToken } from "@/utils/token";
 
 export function NavUser({
   user,
@@ -37,6 +39,14 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+  const { signOut } = useClerk();
+  const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    signOut();
+    removeToken();
+    navigate("/sign-in");
+  };
 
   return (
     <SidebarMenu>
@@ -99,9 +109,8 @@ export function NavUser({
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
               <LogOut />
-              <SignOutButton />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
