@@ -6,6 +6,6 @@
  * OpenAPI spec version: 1.0
  */
 
-export type UserControllerSignInWithClerk200 = {
-  access_token?: string;
-};
+export interface ClerkSignInResponseDto {
+  access_token: string;
+}

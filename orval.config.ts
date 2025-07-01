@@ -6,7 +6,7 @@ export default defineConfig({
     output: {
       target: "./src/queries/index.ts",
       schemas: "./src/queries/model",
-      mock: true,
+      mock: false,
       override: {
         mutator: {
           path: "src/lib/axios.ts",
