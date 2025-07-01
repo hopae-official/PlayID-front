@@ -1,6 +1,6 @@
 import Axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { merge } from "lodash";
-import { getToken } from "../../utils/token";
+import { getToken } from "../utils/token";
 
 export const instance = Axios.create({
   baseURL: "https://studio-hopae.doslash.io",
