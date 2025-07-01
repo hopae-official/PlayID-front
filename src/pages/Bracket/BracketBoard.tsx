@@ -1174,7 +1174,7 @@ const useFreeForAllBracketNodesEdges = (
       data: match,
       position: {
         x:
-          idx === (boardType === BOARD_TYPE.RESULT ? gameNodes.length - 1 : 0)
+          idx === gameNodes.length - 1 && boardType === BOARD_TYPE.RESULT
             ? (match.round - 1) * columnWidth + 100
             : (match.round - 1) * columnWidth,
         y: rowHeight,
@@ -1190,7 +1190,7 @@ const useFreeForAllBracketNodesEdges = (
       data: match,
       position: {
         x:
-          idx === settingNodes.length - 1
+          idx === settingNodes.length - 1 && boardType === BOARD_TYPE.RESULT
             ? (match.round - 1) * columnWidth + 100
             : (match.round - 1) * columnWidth,
         y: 100,
