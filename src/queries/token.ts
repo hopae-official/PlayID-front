@@ -1,10 +1,10 @@
 import { userControllerSignInWithClerk } from "@/api";
-import { getToken, saveToken } from "@/utils/token";
+import { saveToken } from "@/utils/token";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@clerk/clerk-react";
 
 export const getPlayIdToken = () => {
-  const { isSignedIn } = useAuth();
+  const { getToken, isSignedIn } = useAuth();
   return useQuery({
     queryKey: ["playIdToken"],
     queryFn: async () => {
