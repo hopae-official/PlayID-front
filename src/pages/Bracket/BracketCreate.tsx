@@ -21,6 +21,11 @@ import {
 import { toast } from "sonner";
 import AssignCompetitorDialog from "@/components/Bracket/AssignCompetitorDialog";
 import { useExpandStore } from "@/stores/expand";
+import { getStage } from "@/queries/stage";
+import { useParams } from "react-router-dom";
+import { createBracket } from "@/queries/bracket";
+import type { CreateBracketDtoFormat } from "@/api/model";
+import { useEffect } from "react";
 
 export type Competitor = {
   id: string;
@@ -44,7 +49,7 @@ export type Stage = {
   competitors: Competitor[];
   groups: Group[];
   isThirdPlace: boolean;
-  bracketType: BracketType;
+  bracketType: CreateBracketDtoFormat;
   matches: Match[];
   // 프리포올 대진표 생성 시 사용
   totalRounds?: number;
@@ -70,7 +75,7 @@ export type Action =
     }
   | { type: "SET_MATCHES"; payload: Match[] }
   | { type: "SET_GROUP_MATCHES"; payload: { id: string; matches: Match[] } }
-  | { type: "SET_BRACKET_TYPE"; payload: BracketType }
+  | { type: "SET_BRACKET_TYPE"; payload: CreateBracketDtoFormat }
   | { type: "SET_TOTAL_ROUNDS"; payload: number }
   | { type: "SET_ASSIGN_COMPETITORS"; payload: Competitor[] }
   | { type: "SET_ASSIGN_GROUPS_COMPETITORS"; payload: Group[] }
@@ -299,7 +304,7 @@ const stageReducer = (state: Stage, action: Action): Stage => {
         groups: [],
         matches: [],
         isThirdPlace: false,
-        bracketType: "single",
+        bracketType: "SINGLE_ELIMINATION",
         totalRounds: 1,
       };
 
@@ -360,6 +365,13 @@ const checkMinimumRemainingTeams = (
 };
 
 const BracketCreate = () => {
+  const params = useParams();
+  console.log("params", params.id);
+
+  const { data: stageTest } = getStage(Number(params.id));
+
+  console.log("stageTest", stageTest);
+
   const navigate = useNavigate();
   const { isExpand } = useExpandStore();
   const stageNameRef = useRef<HTMLInputElement>(null);
@@ -403,11 +415,21 @@ const BracketCreate = () => {
           ],
     groups: [],
     isThirdPlace: false,
-    bracketType: "single",
+    bracketType: "SINGLE_ELIMINATION",
     matches: [],
   };
   const [stage, dispatch] = useReducer(stageReducer, initialState);
   const [selectedGroupId, setSelectedGroupId] = useState(stage.groups[0]?.id);
+  const { mutate: createBracketMutate, isSuccess, isError } = createBracket();
+
+  useEffect(() => {
+    if (isSuccess) {
+      setIsCreateBracket(true);
+    }
+    if (isError) {
+      toast.error("대진표 생성에 실패했습니다.");
+    }
+  }, [isSuccess, isError]);
 
   const handleCreateBracket = () => {
     if (stage.name === "") {
@@ -420,15 +442,17 @@ const BracketCreate = () => {
       handleChangeGroupTab(stage.groups[0].id);
     }
 
-    setIsCreateBracket(true);
+    createBracketMutate({
+      format: stage.bracketType,
+      stageId: Number(params.id),
+      stageName: stage.name,
+    });
   };
 
   const handleAssignBracket = (competitors: Competitor[]) => {
     console.log("superstage", stage);
 
     if (stage.groups.length > 0) {
-      console.log("여기");
-
       dispatch({
         type: "SET_ASSIGN_GROUPS_COMPETITORS",
         payload: stage.groups.map((group) =>
@@ -444,8 +468,6 @@ const BracketCreate = () => {
         ),
       });
     } else {
-      console.log("여기2");
-
       dispatch({ type: "SET_ASSIGN_COMPETITORS", payload: competitors });
     }
   };
@@ -563,7 +585,7 @@ const BracketCreate = () => {
               onValueChange={(value) =>
                 dispatch({
                   type: "SET_BRACKET_TYPE",
-                  payload: value as BracketType,
+                  payload: value as CreateBracketDtoFormat,
                 })
               }
               className="grid grid-cols-2 gap-4 mt-6"
@@ -590,7 +612,7 @@ const BracketCreate = () => {
               </div>
             </RadioGroup>
             <div className="grid grid-cols-2 gap-4 mt-6">
-              {stage.bracketType === "single" && (
+              {stage.bracketType === "SINGLE_ELIMINATION" && (
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="third-place"
@@ -760,7 +782,7 @@ const BracketCreate = () => {
                 </div>
               </div>
             )}
-            {stage.bracketType === "free" && stage.totalRounds && (
+            {stage.bracketType === "FREE_FOR_ALL" && stage.totalRounds && (
               <div className="flex flex-col flex-1 mt-10">
                 <div className="flex flex-col gap-2">
                   <div className="flex flex-row items-center justify-between">

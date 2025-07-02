@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import type { Game, Sheet } from ".";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { TabsList } from "@radix-ui/react-tabs";
@@ -9,23 +8,25 @@ import { useStageStore } from "@/stores/stage";
 import BracketBoard, { BOARD_TYPE } from "./BracketBoard";
 import { type CustomControlMenuType } from "@/components/Bracket/CustomControls";
 import { useSidebar } from "@/components/ui/sidebar";
+import type { GameType, Stage } from "@/api/model";
 
-interface BracketSheetProps {
-  game: Game;
-  onAddSheet?: () => void;
-  onDeleteSheet?: (id: string) => void;
+interface BracketStageProps {
+  game: GameType;
+  stages: Stage[];
+  onAddStage?: () => void;
+  onDeleteStage?: (id: string) => void;
 }
 
-const BracketSheet = ({
+const BracketStage = ({
   game,
-  onAddSheet,
-  onDeleteSheet,
-}: BracketSheetProps) => {
+  stages,
+  onAddStage,
+  onDeleteStage,
+}: BracketStageProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [sheets, setSheets] = useState<Sheet[]>(game.sheets);
-  const [selectedSheet, setSelectedSheet] = useState<Sheet>(sheets[0]);
-  const [isFinishRoster, setIsFinishRoster] = useState(true);
+  const [selectedStage, setSelectedStage] = useState<Stage>(stages[0]);
+  const [originalStages, setOriginalStages] = useState<Stage[]>([]);
   const { globalStage, setGlobalStage } = useStageStore();
   const [selectedGroupId, setSelectedGroupId] = useState(
     globalStage?.groups[0]?.id
@@ -33,38 +34,38 @@ const BracketSheet = ({
   const { toggleSidebar } = useSidebar();
 
   useEffect(() => {
-    const prevIds = sheets.map((s) => s.id);
-    const nextIds = game.sheets.map((s) => s.id);
+    const prevIds = originalStages.map((s) => s.id);
+    const nextIds = stages.map((s) => s.id);
 
     // 시트가 삭제된 경우
     if (prevIds.length > nextIds.length) {
       const deletedId = prevIds.find((id) => !nextIds.includes(id));
       // 현재 선택된 시트가 삭제된 경우
-      if (deletedId === selectedSheet.id) {
+      if (deletedId === selectedStage.id) {
         const deletedIndex = prevIds.findIndex((id) => id === deletedId);
         const fallbackId =
           deletedIndex > 0 ? prevIds[deletedIndex - 1] : nextIds[0];
-        const fallbackSheet = game.sheets.find((s) => s.id === fallbackId);
-        if (fallbackSheet) setSelectedSheet(fallbackSheet);
+        const fallbackStage = stages.find((s) => s.id === fallbackId);
+        if (fallbackStage) setSelectedStage(fallbackStage);
       }
     }
     // 시트가 추가된 경우
     else if (prevIds.length < nextIds.length) {
       // 새로 추가된 시트로 포커스
       const addedId = nextIds.find((id) => !prevIds.includes(id));
-      const addedSheet = game.sheets.find((s) => s.id === addedId);
-      if (addedSheet) setSelectedSheet(addedSheet);
+      const addedStage = stages.find((s) => s.id === addedId);
+      if (addedStage) setSelectedStage(addedStage);
     }
 
-    setSheets(game.sheets);
-  }, [game.sheets]);
+    setOriginalStages(stages);
+  }, [stages]);
 
-  const handleAddSheet = () => {
-    onAddSheet?.();
+  const handleAddStage = () => {
+    onAddStage?.();
   };
 
-  const handleDeleteSheet = (id: string) => {
-    onDeleteSheet?.(id);
+  const handleDeleteStage = (id: string) => {
+    onDeleteStage?.(id);
   };
 
   const handleChangeGroupTab = (groupId: string) => {
@@ -77,7 +78,7 @@ const BracketSheet = ({
         toggleSidebar();
         break;
       case "EDIT":
-        navigate(`/bracket/create/${selectedSheet.id}`);
+        navigate(`/bracket/create/${selectedStage.id}`);
         break;
       case "DELETE":
         setGlobalStage(null);
@@ -87,32 +88,29 @@ const BracketSheet = ({
     }
   };
 
-  console.log("globalStage", globalStage);
-
   return (
     <div className="flex h-full flex-col gap-4">
       <Tabs
-        defaultValue={selectedSheet.id}
         className="h-full gap-0"
-        value={selectedSheet.id}
+        value={selectedStage.id.toString()}
         onValueChange={(value) => {
-          setSelectedSheet(
-            sheets.find((sheet) => sheet.id === value) || sheets[0]
+          setSelectedStage(
+            stages.find((stage) => stage.id.toString() === value) || stages[0]
           );
         }}
       >
         <TabsList className="flex flex-row items-center gap-0">
-          {sheets.map((sheet, index) => (
+          {stages.map((stage, index) => (
             <div
               className={`h-[40px] flex flex-row items-center rounded-t-md cursor-pointer ${
-                selectedSheet.id === sheet.id
+                selectedStage.id === stage.id
                   ? "bg-[#18181B]"
                   : "bg-transparent"
               } ${index !== 0 && "pr-4"}`}
-              key={sheet.id}
+              key={stage.id}
             >
               <TabsTrigger
-                value={sheet.id}
+                value={stage.id.toString()}
                 className={`
                   h-full
                   border-none
@@ -124,13 +122,13 @@ const BracketSheet = ({
                   py-2
                   ${index === 0 ? "px-4" : "pl-4 pr-2"}`}
               >
-                <span>{sheet.name}</span>
+                <span>{stage.name}</span>
               </TabsTrigger>
               {index !== 0 && (
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteSheet(sheet.id);
+                    handleDeleteStage(stage.id.toString());
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
                   className="cursor-pointer"
@@ -144,13 +142,13 @@ const BracketSheet = ({
             className="dark:p-0 dark:hover:bg-transparent cursor-pointer"
             variant="ghost"
             size="icon"
-            onClick={handleAddSheet}
+            onClick={handleAddStage}
           >
             <PlusIcon className="size-4" />
           </Button>
         </TabsList>
         <TabsContent
-          value={selectedSheet.id}
+          value={selectedStage.id.toString()}
           className="flex h-full flex-col justify-center items-center rounded-b-md rounded-tr-md"
         >
           {globalStage ? (
@@ -168,34 +166,20 @@ const BracketSheet = ({
           ) : (
             <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md">
               <div className="text-2xl font-semibold">
-                {isFinishRoster
-                  ? "대진표를 생성하시겠어요?"
-                  : "로스터 확정이 되지 않았어요"}
+                대진표를 생성하시겠어요?
               </div>
               <div className="text-sm text-muted-foreground mt-2">
-                {isFinishRoster
-                  ? "마지막 로스터 확정: 2025-06-16 12:00:00"
-                  : "대진표 생성은 로스터 확정 후에 가능해요."}
+                마지막 로스터 확정: {game.isRosterConfirmed ? "확정" : "미확정"}
               </div>
-              {isFinishRoster ? (
-                <Button
-                  className="mt-6 cursor-pointer"
-                  size="lg"
-                  onClick={() => {
-                    navigate(`/bracket/create/${selectedSheet.id}`);
-                  }}
-                >
-                  대진표 생성
-                </Button>
-              ) : (
-                <Button
-                  className="mt-6 cursor-pointer bg-zinc-950 text-zinc-100 border-zinc-800 hover:bg-zinc-800"
-                  size="lg"
-                  onClick={() => setIsFinishRoster(true)}
-                >
-                  로스터 확정하러 가기
-                </Button>
-              )}
+              <Button
+                className="mt-6 cursor-pointer"
+                size="lg"
+                onClick={() => {
+                  navigate(`/bracket/create/${selectedStage.id}`);
+                }}
+              >
+                대진표 생성
+              </Button>
             </div>
           )}
         </TabsContent>
@@ -204,4 +188,4 @@ const BracketSheet = ({
   );
 };
 
-export default BracketSheet;
+export default BracketStage;

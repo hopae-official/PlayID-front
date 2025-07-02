@@ -1656,7 +1656,7 @@ const MatchNode = ({
         <MatchResultDrawer match={match} />
       )}
 
-      {stage.bracketType === "single" && (
+      {stage.bracketType === "SINGLE_ELIMINATION" && (
         <div className="space-y-1">
           {match.participants &&
             match.participants.map((participant, idx) => (
@@ -1717,7 +1717,7 @@ const MatchNode = ({
         </div>
       )}
 
-      {stage.bracketType === "free" && (
+      {stage.bracketType === "FREE_FOR_ALL" && (
         <div className="space-y-1">
           {(match.result?.setResult?.length
             ? match.result.setResult
@@ -1842,7 +1842,7 @@ const BracketBoard = ({
     competitors: [],
     groups: [],
     isThirdPlace: false,
-    bracketType: "single",
+    bracketType: "SINGLE_ELIMINATION",
     matches: [],
   },
   dispatch,
@@ -1889,7 +1889,7 @@ const BracketBoard = ({
     const newGroups = normalizedGroups.map((group) => ({
       ...group,
       matches:
-        stage.bracketType === "free"
+        stage.bracketType === "FREE_FOR_ALL"
           ? buildFreeForAllBracket(group.competitors, stage.totalRounds || 1)
           : buildSingleEliminationBracket(
               group.competitors,
@@ -1952,7 +1952,7 @@ const BracketBoard = ({
   );
 
   const { nodes, edges } =
-    stage.bracketType === "free"
+    stage.bracketType === "FREE_FOR_ALL"
       ? groups.length > 1
         ? useFreeForAllBracketNodesEdges(
             groups.find((group) => group.id === selectedGroupId)?.matches || [],
@@ -1995,14 +1995,15 @@ const BracketBoard = ({
               onChange={onChangeGroupTab}
             />
           )}
-          {stage.bracketType === "single" && boardType === BOARD_TYPE.EDIT && (
-            <ThirdPlaceToggleButton
-              stage={stage}
-              onChange={() =>
-                dispatch && dispatch({ type: "TOGGLE_THIRD_PLACE" })
-              }
-            />
-          )}
+          {stage.bracketType === "SINGLE_ELIMINATION" &&
+            boardType === BOARD_TYPE.EDIT && (
+              <ThirdPlaceToggleButton
+                stage={stage}
+                onChange={() =>
+                  dispatch && dispatch({ type: "TOGGLE_THIRD_PLACE" })
+                }
+              />
+            )}
           <CustomControls
             menus={
               boardType === BOARD_TYPE.EDIT || boardType === BOARD_TYPE.RESULT

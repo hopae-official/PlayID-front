@@ -12,9 +12,8 @@ import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { TabsList } from "@radix-ui/react-tabs";
 import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { useStageStore } from "@/stores/stage";
 import { useExpandStore } from "@/stores/expand";
-import BracketSheet from "../Bracket/BracketSheet";
+import BracketStage from "../Bracket/BracketStage";
 
 export type Sheet = {
   id: string;
@@ -172,11 +171,8 @@ const Result = () => {
           </TabsList>
           {selectedGame && (
             <TabsContent value={selectedGame.id}>
-              <BracketSheet
-                game={
-                  games.find((game) => game.id === selectedGame.id) ||
-                  ({} as Game)
-                }
+              <BracketStage
+                game={games.find((game) => game.id === selectedGame.id) || null}
                 onAddSheet={handleAddSheet}
                 onDeleteSheet={handleDeleteSheet}
               />
