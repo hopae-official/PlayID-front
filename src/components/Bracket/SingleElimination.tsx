@@ -300,139 +300,6 @@ const generateBalancedBracket1 = (competitors: Competitor[]): Match[] => {
   return matches;
 };
 
-const generateBalancedBracket = (competitors: Competitor[]): Match[] => {
-  const matches: Match[] = [];
-  let matchCount = 1;
-  const createMatchId = (prefix: string) => `${prefix}-${matchCount++}`;
-
-  // 1R: 모든 참가자 매치
-  const r1: Match[] = [];
-  for (let i = 0; i < competitors.length; i += 2) {
-    const p1 = competitors[i]?.name || "";
-    const p2 = competitors[i + 1]?.name || "";
-    if (p1) {
-      r1.push({
-        id: createMatchId("1R"),
-        round: 1,
-        name: `1R-${r1.length + 1}`,
-        participants: [p1, p2],
-      });
-    }
-  }
-  matches.push(...r1);
-
-  if (r1.length < 2) return matches;
-
-  let round = 2;
-  let prevMatches = r1;
-
-  while (true) {
-    const winners = prevMatches.map((m) => ({
-      winner: `${m.id} 승자`,
-      from: m.id,
-    }));
-
-    // 세미파이널 진입 조건: 다음 라운드가 2~3매치가 될 때
-    if (Math.ceil(winners.length / 2) <= 3) {
-      // 다음 라운드 매치 수가 2개가 되도록 조정
-      if (winners.length === 3) {
-        // Semi-1: 첫 두 명
-        const semi1 = {
-          id: "S1",
-          round,
-          name: "Semi-1",
-          participants: [winners[0].winner, winners[1].winner],
-          prevMatchIds: [winners[0].from, winners[1].from],
-        };
-
-        // Semi-2: 세 번째 사람 부전승
-        const semi2 = {
-          id: "S2",
-          round,
-          name: "Semi-2",
-          participants: [winners[2].winner, ""],
-          prevMatchIds: [winners[2].from],
-        };
-
-        matches.push(semi1, semi2);
-      } else {
-        // 2/4명인 경우 균등 분배
-        const semi1 = {
-          id: "S1",
-          round,
-          name: "Semi-1",
-          participants: [winners[0].winner, winners[1]?.winner || ""],
-          prevMatchIds: [winners[0].from, winners[1]?.from].filter(Boolean),
-        };
-
-        const semi2 = {
-          id: "S2",
-          round,
-          name: "Semi-2",
-          participants: [winners[2]?.winner || "", winners[3]?.winner || ""],
-          prevMatchIds: [winners[2]?.from, winners[3]?.from].filter(Boolean),
-        };
-
-        matches.push(semi1, semi2);
-      }
-
-      // Final
-      const final = {
-        id: "F",
-        round: round + 1,
-        name: "Final",
-        participants: ["S1 승자", "S2 승자"],
-        prevMatchIds: ["S1", "S2"],
-      };
-      matches.push(final);
-      break;
-    }
-
-    // 중간 라운드 매치 구성
-    const nextMatches: Match[] = [];
-    for (let i = 0; i < winners.length; i += 2) {
-      const p1 = winners[i];
-      const p2 = winners[i + 1];
-
-      if (!p2) {
-        // 홀수일 때 마지막 한 명은 다음 라운드 첫 매치로
-        if (
-          nextMatches.length > 0 &&
-          nextMatches[0] &&
-          nextMatches[0].participants &&
-          nextMatches[0].prevMatchIds
-        ) {
-          nextMatches[0].participants.push(p1.winner);
-          nextMatches[0].prevMatchIds.push(p1.from);
-        } else {
-          nextMatches.push({
-            id: createMatchId(`${round}R`),
-            round,
-            name: `${round}R-1`,
-            participants: [p1.winner],
-            prevMatchIds: [p1.from],
-          });
-        }
-        continue;
-      }
-
-      nextMatches.push({
-        id: createMatchId(`${round}R`),
-        round,
-        name: `${round}R-${nextMatches.length + 1}`,
-        participants: [p1.winner, p2.winner],
-        prevMatchIds: [p1.from, p2.from],
-      });
-    }
-
-    matches.push(...nextMatches);
-    prevMatches = nextMatches;
-    round++;
-  }
-
-  return matches;
-};
-
 // 6명 기준 특수 구조(3-1-1) 대진표 생성 함수
 const generateSpecialBracket6 = (participants: Competitor[]): Match[] => {
   // 1R
@@ -2812,9 +2679,9 @@ const MatchNode = ({ data }: { data: any }) => {
 // 6. 노드 타입 등록
 const nodeTypes = { matchNode: MatchNode };
 
-const isPowerOfTwo = (n: number) => {
-  return n > 0 && (n & (n - 1)) === 0;
-};
+// const isPowerOfTwo = (n: number) => {
+//   return n > 0 && (n & (n - 1)) === 0;
+// };
 
 // 7. 메인 컴포넌트
 const SingleElimination = ({ count }: SingleEliminationsProps) => {

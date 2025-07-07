@@ -1,16 +1,7 @@
-import { MiniMap, Panel, useReactFlow } from "@xyflow/react";
-import {
-  Plus,
-  Minus,
-  Expand,
-  Minimize,
-  SquarePen,
-  Trash2,
-  Shrink,
-} from "lucide-react";
+import { Panel, useReactFlow } from "@xyflow/react";
+import { Plus, Minus, Expand, SquarePen, Trash2, Shrink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useExpandStore } from "@/stores/expand";
-import { useSidebar } from "../ui/sidebar";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +11,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { DialogClose, DialogTrigger } from "@radix-ui/react-dialog";
+import { useState } from "react";
 
 export const CustomControlMenu = {
   ZOOM_IN: "ZOOM_IN",
@@ -40,6 +32,7 @@ interface CustomControlProps {
 const CustomControls = ({ menus, onClick }: CustomControlProps) => {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const { isExpand, setIsExpand } = useExpandStore();
+  const [isDeleteBracketOpen, setIsDeleteBracketOpen] = useState(false);
 
   const handleClickZoomIn = () => {
     zoomIn();
@@ -61,6 +54,7 @@ const CustomControls = ({ menus, onClick }: CustomControlProps) => {
 
   const handleClickDelete = () => {
     onClick?.(CustomControlMenu.DELETE);
+    setIsDeleteBracketOpen(false);
   };
 
   return (
@@ -114,14 +108,16 @@ const CustomControls = ({ menus, onClick }: CustomControlProps) => {
             </Button>
           )}
           {menus?.includes(CustomControlMenu.DELETE) && (
-            <Dialog>
+            <Dialog
+              open={isDeleteBracketOpen}
+              onOpenChange={setIsDeleteBracketOpen}
+            >
               <DialogTrigger asChild>
                 <Button
                   size="icon"
                   variant="ghost"
                   className="w-8 h-8 rounded-none cursor-pointer"
                   aria-label={CustomControlMenu.DELETE}
-                  //   onClick={handleClickDelete}
                 >
                   <Trash2 />
                 </Button>
@@ -137,9 +133,15 @@ const CustomControls = ({ menus, onClick }: CustomControlProps) => {
                   </DialogDescription>
                   <DialogFooter className="mt-4">
                     <DialogClose asChild>
-                      <Button variant="outline">취소</Button>
+                      <Button variant="outline" className="cursor-pointer">
+                        취소
+                      </Button>
                     </DialogClose>
-                    <Button variant="destructive" onClick={handleClickDelete}>
+                    <Button
+                      variant="destructive"
+                      className="cursor-pointer"
+                      onClick={handleClickDelete}
+                    >
                       삭제
                     </Button>
                   </DialogFooter>

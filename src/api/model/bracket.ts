@@ -17,7 +17,6 @@ export interface Bracket {
   formatOptions: BracketFormatOptions;
   groups: BracketGroup[];
   id: number;
-  participantRosterCount: number;
   stage: Stage;
   stageId: number;
   updatedAt: string;

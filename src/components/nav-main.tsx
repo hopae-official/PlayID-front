@@ -18,7 +18,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 
 interface NavMainProps {

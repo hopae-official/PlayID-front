@@ -1,17 +1,12 @@
 import * as React from "react";
 import {
   AudioWaveform,
-  BellPlus,
-  BookOpenText,
-  ChartColumnBig,
   CircleUserRound,
   Frame,
   GalleryVerticalEnd,
   Gamepad2,
   Map,
-  MessageCircleQuestion,
   PieChart,
-  Settings2,
   Trophy,
 } from "lucide-react";
 
@@ -50,36 +45,36 @@ const data = {
     },
   ],
   navMain: [
-    {
-      id: "dashboard",
-      title: "대시보드",
-      url: "/dashboard",
-      icon: ChartColumnBig,
-      isActive: true,
-    },
-    {
-      id: "settings",
-      title: "대회 설정",
-      url: "/settings",
-      icon: Settings2,
-    },
-    {
-      title: "모집 관리",
-      url: "#",
-      icon: CircleUserRound,
-      items: [
-        {
-          id: "applicants",
-          title: "신청자 목록",
-          url: "/applicants",
-        },
-        {
-          id: "roster",
-          title: "로스터",
-          url: "/roster",
-        },
-      ],
-    },
+    // {
+    //   id: "dashboard",
+    //   title: "대시보드",
+    //   url: "/dashboard",
+    //   icon: ChartColumnBig,
+    //   isActive: true,
+    // },
+    // {
+    //   id: "settings",
+    //   title: "대회 설정",
+    //   url: "/settings",
+    //   icon: Settings2,
+    // },
+    // {
+    //   title: "모집 관리",
+    //   url: "#",
+    //   icon: CircleUserRound,
+    //   items: [
+    //     {
+    //       id: "applicants",
+    //       title: "신청자 목록",
+    //       url: "/applicants",
+    //     },
+    //     {
+    //       id: "roster",
+    //       title: "로스터",
+    //       url: "/roster",
+    //     },
+    //   ],
+    // },
     {
       title: "경기 관리",
       url: "#",
@@ -90,16 +85,16 @@ const data = {
           title: "경기 목록(대진표)",
           url: "/bracket",
         },
-        {
-          id: "referee",
-          title: "심판 배정",
-          url: "/referee",
-        },
-        {
-          id: "checkin",
-          title: "체크인",
-          url: "/checkin",
-        },
+        // {
+        //   id: "referee",
+        //   title: "심판 배정",
+        //   url: "/referee",
+        // },
+        // {
+        //   id: "checkin",
+        //   title: "체크인",
+        //   url: "/checkin",
+        // },
       ],
     },
     {
@@ -112,33 +107,33 @@ const data = {
           title: "경기 결과",
           url: "/result",
         },
-        {
-          id: "winner",
-          title: "우승자 관리",
-          url: "/winner",
-        },
+        // {
+        //   id: "winner",
+        //   title: "우승자 관리",
+        //   url: "/winner",
+        // },
       ],
     },
-    {
-      id: "notice",
-      title: "공지 센터",
-      url: "/notice",
-      icon: BellPlus,
-    },
+    // {
+    //   id: "notice",
+    //   title: "공지 센터",
+    //   url: "/notice",
+    //   icon: BellPlus,
+    // },
   ],
   navSecondary: [
-    {
-      id: "rulebook",
-      title: "룰북",
-      url: "/rulebook",
-      icon: BookOpenText,
-    },
-    {
-      id: "inquiry",
-      title: "문의하기",
-      url: "/inquiry",
-      icon: MessageCircleQuestion,
-    },
+    // {
+    //   id: "rulebook",
+    //   title: "룰북",
+    //   url: "/rulebook",
+    //   icon: BookOpenText,
+    // },
+    // {
+    //   id: "inquiry",
+    //   title: "문의하기",
+    //   url: "/inquiry",
+    //   icon: MessageCircleQuestion,
+    // },
   ],
   projects: [
     {

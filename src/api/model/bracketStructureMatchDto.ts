@@ -17,7 +17,7 @@ export interface BracketStructureMatchDto {
   /** 참가자 목록 */
   participants: BracketStructureParticipantDto[];
   /** 이전 라운드 매치들의 임시 ID (진출 연결용) */
-  prevTempMatchIds?: string[];
+  prevTempMatchIds: string[];
   /** 배정 심판 ID 목록 */
   refereeIds: number[];
   /** 경기 일자 (YYYY-MM-DD) */

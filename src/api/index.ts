@@ -16,6 +16,7 @@ import type {
   AuthenticateCheckinDto,
   BankAccount,
   BracketControllerCreateBracket200,
+  BracketControllerGetBracket200,
   BracketGroupControllerGetBracketGroupOverview200,
   BrawlStarsCard,
   BrawlStarsUser,
@@ -119,6 +120,7 @@ import type {
   ScanQrDto,
   SendBatchNotiDto,
   SendPushDto,
+  SetMatchWinnerAndProgressionDto,
   SignInWithClerkTokenDto,
   SignInWithPassResponseDto,
   StageControllerCreateStage200,
@@ -135,11 +137,13 @@ import type {
   TeamsControllerRemovePlayerParams,
   TeamsControllerRemoveTeamParams,
   UpdateGameTypeDto,
+  UpdateMatchDto,
   UpdateMatchSetScreenshotDto,
   UpdateNicknameDto,
   UpdateParentAgreementDto,
   UpdatePositionDto,
   UpdateRankAndTierDto,
+  UpdateRoundDto,
   UpdateStageDto,
   UpdateStatusDto,
   UpdateUserDto,
@@ -2174,6 +2178,32 @@ export const bracketControllerCreateBracket = (
 };
 
 /**
+ * 대진표 ID로 조회, stage 관련 데이터 미포함! swagger에만 나옵니다!,
+ */
+export const bracketControllerGetBracket = (
+  bracketId: number,
+  options?: SecondParameter<typeof customInstance>
+) => {
+  return customInstance<BracketControllerGetBracket200>(
+    { url: `/brackets/${bracketId}`, method: "GET" },
+    options
+  );
+};
+
+/**
+ * 대진표 삭제
+ */
+export const bracketControllerDeleteBracket = (
+  bracketId: number,
+  options?: SecondParameter<typeof customInstance>
+) => {
+  return customInstance<void>(
+    { url: `/brackets/${bracketId}`, method: "DELETE" },
+    options
+  );
+};
+
+/**
  * 대진표 전체 구조 초기화 (전체 구조 ∋ 포맷 설정, 라운드, 매치 등)
  */
 export const bracketControllerInitializeBracketStructure = (
@@ -2188,19 +2218,6 @@ export const bracketControllerInitializeBracketStructure = (
       headers: { "Content-Type": "application/json" },
       data: initializeBracketStructureDto,
     },
-    options
-  );
-};
-
-/**
- * 대진표 삭제
- */
-export const bracketControllerDeleteBracket = (
-  bracketId: number,
-  options?: SecondParameter<typeof customInstance>
-) => {
-  return customInstance<void>(
-    { url: `/brackets/${bracketId}`, method: "DELETE" },
     options
   );
 };
@@ -2313,6 +2330,57 @@ export const matchControllerUploadSetResultScreenshot = (
     {
       url: `/matches/${matchId}/set-results/${setResultId}/screenshots`,
       method: "POST",
+    },
+    options
+  );
+};
+
+export const matchControllerUpdateMatch = (
+  matchId: number,
+  updateMatchDto: UpdateMatchDto,
+  options?: SecondParameter<typeof customInstance>
+) => {
+  return customInstance<void>(
+    {
+      url: `/matches/${matchId}`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: updateMatchDto,
+    },
+    options
+  );
+};
+
+/**
+ * 매치의 승자/패자 지정 및 진출 처리
+ */
+export const matchControllerSetMatchWinnerAndProgression = (
+  matchId: number,
+  setMatchWinnerAndProgressionDto: SetMatchWinnerAndProgressionDto,
+  options?: SecondParameter<typeof customInstance>
+) => {
+  return customInstance<void>(
+    {
+      url: `/matches/${matchId}/progress`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: setMatchWinnerAndProgressionDto,
+    },
+    options
+  );
+};
+
+export const roundControllerUpdateRound = (
+  roundId: number,
+  updateRoundDto: UpdateRoundDto,
+  options?: SecondParameter<typeof customInstance>
+) => {
+  return customInstance<void>(
+    {
+      url: `/rounds/${roundId}`,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      data: updateRoundDto,
     },
     options
   );
@@ -2810,11 +2878,14 @@ export type VersionControllerUpdateVersionInfoResult = NonNullable<
 export type BracketControllerCreateBracketResult = NonNullable<
   Awaited<ReturnType<typeof bracketControllerCreateBracket>>
 >;
-export type BracketControllerInitializeBracketStructureResult = NonNullable<
-  Awaited<ReturnType<typeof bracketControllerInitializeBracketStructure>>
+export type BracketControllerGetBracketResult = NonNullable<
+  Awaited<ReturnType<typeof bracketControllerGetBracket>>
 >;
 export type BracketControllerDeleteBracketResult = NonNullable<
   Awaited<ReturnType<typeof bracketControllerDeleteBracket>>
+>;
+export type BracketControllerInitializeBracketStructureResult = NonNullable<
+  Awaited<ReturnType<typeof bracketControllerInitializeBracketStructure>>
 >;
 export type BracketGroupControllerGetBracketGroupOverviewResult = NonNullable<
   Awaited<ReturnType<typeof bracketGroupControllerGetBracketGroupOverview>>
@@ -2836,6 +2907,15 @@ export type MatchControllerSaveSetParticipantStatsResult = NonNullable<
 >;
 export type MatchControllerUploadSetResultScreenshotResult = NonNullable<
   Awaited<ReturnType<typeof matchControllerUploadSetResultScreenshot>>
+>;
+export type MatchControllerUpdateMatchResult = NonNullable<
+  Awaited<ReturnType<typeof matchControllerUpdateMatch>>
+>;
+export type MatchControllerSetMatchWinnerAndProgressionResult = NonNullable<
+  Awaited<ReturnType<typeof matchControllerSetMatchWinnerAndProgression>>
+>;
+export type RoundControllerUpdateRoundResult = NonNullable<
+  Awaited<ReturnType<typeof roundControllerUpdateRound>>
 >;
 export type RosterControllerCreateRosterResult = NonNullable<
   Awaited<ReturnType<typeof rosterControllerCreateRoster>>

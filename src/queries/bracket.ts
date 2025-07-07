@@ -1,14 +1,27 @@
 import {
   bracketControllerCreateBracket,
+  bracketControllerDeleteBracket,
   bracketControllerInitializeBracketStructure,
+  bracketControllerGetBracket,
 } from "@/api";
 import type {
   BracketControllerCreateBracket200,
   CreateBracketDto,
   InitializeBracketStructureDto,
 } from "@/api/model";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+export const getBracket = (bracketId: number) => {
+  return useQuery({
+    queryKey: ["getBracket", bracketId],
+    queryFn: async () => {
+      const response = await bracketControllerGetBracket(bracketId);
+      return response.data;
+    },
+    enabled: !!bracketId,
+    retry: false,
+  });
+};
 
 export const createBracket = () => {
   const queryClient = useQueryClient();
@@ -23,7 +36,7 @@ export const createBracket = () => {
   });
 };
 
-export const createBracketStream = () => {
+export const createBracketStructure = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
@@ -41,6 +54,25 @@ export const createBracketStream = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["getStages"] });
+      queryClient.invalidateQueries({ queryKey: ["getBracket"] });
+      queryClient.invalidateQueries({ queryKey: ["getBracketGroups"] });
+    },
+  });
+};
+
+export const deleteBracket = (refreshQueries: boolean = false) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (bracketId: number) => {
+      const response = await bracketControllerDeleteBracket(bracketId);
+      return response;
+    },
+    onSuccess: () => {
+      if (refreshQueries) {
+        queryClient.invalidateQueries({ queryKey: ["getStages"] });
+        queryClient.invalidateQueries({ queryKey: ["getBracket"] });
+        queryClient.invalidateQueries({ queryKey: ["getBracketGroups"] });
+      }
     },
   });
 };

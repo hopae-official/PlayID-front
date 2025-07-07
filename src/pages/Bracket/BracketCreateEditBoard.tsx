@@ -6,18 +6,11 @@ import {
   type Dispatch,
 } from "react";
 import type { Edge, Node } from "@xyflow/react";
-import { ReactFlow, Position, Background, Handle } from "@xyflow/react";
+import { ReactFlow, Position, Handle } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
-import {
-  CalendarIcon,
-  ChevronDownIcon,
-  ClipboardPlus,
-  ScanLine,
-  Settings,
-  XIcon,
-} from "lucide-react";
+import { CalendarIcon, ChevronDownIcon, Settings, XIcon } from "lucide-react";
 import {
   Dialog,
   DialogClose,
@@ -47,37 +40,48 @@ import {
 import { toast } from "sonner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import type { Action, Competitor, Group, Stage } from "./BracketCreate";
+import type { Action, Group, CustomStage } from "./BracketCreate";
 import GroupToggleButton from "@/components/Bracket/GroupToggleButton";
 import { groupBy } from "lodash";
 import ThirdPlaceToggleButton from "@/components/Bracket/ThirdPlaceToggleButton";
 import { useStageStore } from "@/stores/stage";
-import { useNavigate } from "react-router-dom";
 import CustomControls, {
   type CustomControlMenuType,
 } from "@/components/Bracket/CustomControls";
 import { useExpandStore } from "@/stores/expand";
-import MatchResultDrawer from "@/components/Bracket/MatchResultDrawer";
+import { useGetReferees } from "@/queries/refree";
+import type {
+  BracketStructureMatchDto,
+  BracketStructureRoundDto,
+  InitializeBracketStructureDto,
+  Referee,
+  UpdateMatchDtoBestOf,
+  UpdateRoundDtoBestOf,
+} from "@/api/model";
+import dayjs from "dayjs";
+import { updateMatch } from "@/queries/match";
+import { updateRound } from "@/queries/round";
+import { useNavigate } from "react-router-dom";
 
-export type Match = {
+export type CustomMatch = {
   id: string;
   round: number;
   name: string;
   participants?: { id: string; name: string }[];
   prevMatchIds?: (string | null)[];
-  date?: Date;
-  time?: string;
-  setType?: string;
-  place?: string;
-  winner?: string;
+  scheduledDate?: Date;
+  scheduledTime?: string;
+  bestOf?: UpdateMatchDtoBestOf;
+  venue?: string;
+  winnerRosterId?: string;
   referee?: string[];
   isSettingNode?: boolean;
   isThirdPlace?: boolean;
   result?: {
-    description?: string;
+    resultMemo?: string;
     setResult?: {
-      winner?: Competitor;
-      image?: string;
+      winnerRosterId?: string;
+      screenshotUrl?: string;
       id?: string;
       name?: string;
       point?: number;
@@ -88,10 +92,10 @@ export type Match = {
 
 export type MatchSetting = {
   round: number;
-  date?: Date;
-  time: string;
-  setType: string;
-  place: string;
+  scheduledDate?: Date;
+  scheduledTime: string;
+  bestOf: UpdateRoundDtoBestOf;
+  venue: string;
   referee: string[];
   isSettingNode: boolean;
 };
@@ -105,28 +109,30 @@ export const BOARD_TYPE = {
 export type BoardType = (typeof BOARD_TYPE)[keyof typeof BOARD_TYPE];
 
 export interface BracketBoardProps {
-  stage: Stage;
-  boardType: BoardType;
+  stage: CustomStage;
   selectedGroupId?: string;
+  isFinishUpdate?: boolean;
   dispatch?: Dispatch<Action>;
   onChangeGroupTab?: (groupId: string) => void;
   onDeleteBracket?: () => void;
   onClickControls?: (menu: CustomControlMenuType) => void;
+  onSaveBracket?: (
+    initializeBracketStructureDto: InitializeBracketStructureDto
+  ) => void;
 }
 
 // 싱글엘리미네이션 매치 생성 함수
-const generateSingleEliminationMatches = (
-  participants: Competitor[]
-): Match[] => {
-  if (participants.length < 2) {
+const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
+  if (group.competitors.length < 2) {
     return [];
   }
 
   let matchCount = 1;
-  const allMatches: Match[] = [];
+  const allMatches: CustomMatch[] = [];
+  const participants = group.competitors;
 
   // 1. 1라운드 대진 생성
-  const round1Matches: Match[] = [];
+  const round1Matches: CustomMatch[] = [];
   let round = 1;
   for (let i = 0; i < Math.floor(participants.length / 2); i++) {
     round1Matches.push({
@@ -160,7 +166,7 @@ const generateSingleEliminationMatches = (
   }
   allMatches.push(...round1Matches);
 
-  let contenders: Match[] = round1Matches.map((m) => ({ ...m }));
+  let contenders: CustomMatch[] = round1Matches.map((m) => ({ ...m }));
   round++;
 
   if (participants.length === 3 || participants.length === 4) {
@@ -186,7 +192,7 @@ const generateSingleEliminationMatches = (
       // --- Round 2: 25 -> 13 contenders ---
       const r2Bye = contenders[0];
       const r2Playing = contenders.slice(1);
-      const r2Matches: Match[] = [];
+      const r2Matches: CustomMatch[] = [];
       for (let i = 0; i < r2Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -211,7 +217,7 @@ const generateSingleEliminationMatches = (
         r3Contenders[1], // M22w
         ...r3Contenders.slice(3),
       ];
-      const r3Matches: Match[] = [];
+      const r3Matches: CustomMatch[] = [];
       for (let i = 0; i < r3Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -239,7 +245,7 @@ const generateSingleEliminationMatches = (
         r4Contenders[5],
         r4Contenders[6],
       ];
-      const r4Matches: Match[] = [];
+      const r4Matches: CustomMatch[] = [];
       for (let i = 0; i < r4Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -270,7 +276,7 @@ const generateSingleEliminationMatches = (
       // --- Round 2: 23 -> 12 contenders ---
       const r2Bye = contenders[0];
       const r2Playing = contenders.slice(1);
-      const r2Matches: Match[] = [];
+      const r2Matches: CustomMatch[] = [];
       for (let i = 0; i < r2Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -289,7 +295,7 @@ const generateSingleEliminationMatches = (
       const r3Contenders = [r2Bye, ...r2Matches]; // 12 contenders
 
       // --- Round 3: 12 -> 6 contenders ---
-      const r3Matches: Match[] = [];
+      const r3Matches: CustomMatch[] = [];
       for (let i = 0; i < r3Contenders.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -349,7 +355,7 @@ const generateSingleEliminationMatches = (
       // --- Round 2: 21 -> 11 contenders ---
       const r2Bye = contenders[0];
       const r2Playing = contenders.slice(1);
-      const r2Matches: Match[] = [];
+      const r2Matches: CustomMatch[] = [];
       for (let i = 0; i < r2Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -374,7 +380,7 @@ const generateSingleEliminationMatches = (
         r3Contenders[1], // M22w
         ...r3Contenders.slice(3),
       ];
-      const r3Matches: Match[] = [];
+      const r3Matches: CustomMatch[] = [];
       for (let i = 0; i < r3Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -395,7 +401,7 @@ const generateSingleEliminationMatches = (
       // --- Round 4: 6 -> 4 contenders ---
       const r4Byes = r4Contenders.slice(4); // Last 2 are byes
       const r4Playing = r4Contenders.slice(0, 4);
-      const r4Matches: Match[] = [];
+      const r4Matches: CustomMatch[] = [];
       for (let i = 0; i < r4Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -426,7 +432,7 @@ const generateSingleEliminationMatches = (
       // --- Round 2: 19 -> 10 contenders ---
       const r2Bye = contenders[0];
       const r2Playing = contenders.slice(1);
-      const r2Matches: Match[] = [];
+      const r2Matches: CustomMatch[] = [];
       for (let i = 0; i < r2Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -445,7 +451,7 @@ const generateSingleEliminationMatches = (
       const r3Contenders = [r2Bye, ...r2Matches]; // 10 contenders
 
       // --- Round 3: 10 -> 5 contenders ---
-      const r3Matches: Match[] = [];
+      const r3Matches: CustomMatch[] = [];
       for (let i = 0; i < r3Contenders.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -493,7 +499,7 @@ const generateSingleEliminationMatches = (
       // R2 생성: 1팀 부전승(M1), 8개 경기 (M18~M25)
       const round2Bye = contenders[0];
       const round2Playing = contenders.slice(1);
-      const round2Matches: Match[] = [];
+      const round2Matches: CustomMatch[] = [];
       for (let i = 0; i < round2Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -522,7 +528,7 @@ const generateSingleEliminationMatches = (
       ];
 
       // R3 경기 생성: 4경기 (M26~M29)
-      const round3Matches: Match[] = [];
+      const round3Matches: CustomMatch[] = [];
       for (let i = 0; i < round3Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -576,7 +582,7 @@ const generateSingleEliminationMatches = (
       // R2 생성: 1팀 부전승(M1), 6개 경기
       const round2Bye = contenders[0]; // Match 1 승자
       const round2Playing = contenders.slice(1);
-      const round2Matches: Match[] = [];
+      const round2Matches: CustomMatch[] = [];
       for (let i = 0; i < round2Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -602,7 +608,7 @@ const generateSingleEliminationMatches = (
       ];
 
       // R3 경기 생성
-      const round3Matches: Match[] = [];
+      const round3Matches: CustomMatch[] = [];
       for (let i = 0; i < round3Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -632,7 +638,7 @@ const generateSingleEliminationMatches = (
       // 23, 24명 참가자 케이스(1라운드 후 12팀)에 대한 특별 처리
 
       // R2 생성: 6개 경기
-      const round2Matches: Match[] = [];
+      const round2Matches: CustomMatch[] = [];
       for (let i = 0; i < contenders.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -654,7 +660,7 @@ const generateSingleEliminationMatches = (
       const round3Playing = round2Matches.slice(2);
 
       // R3 경기 생성
-      const round3Matches: Match[] = [];
+      const round3Matches: CustomMatch[] = [];
       for (let i = 0; i < round3Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -686,7 +692,7 @@ const generateSingleEliminationMatches = (
       // R2 생성: 부전승 1팀, 경기 5개
       const round2Bye = contenders[0];
       const round2Playing = contenders.slice(1);
-      const round2Matches: Match[] = [];
+      const round2Matches: CustomMatch[] = [];
       for (let i = 0; i < round2Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -711,7 +717,7 @@ const generateSingleEliminationMatches = (
       const semiFinalDirect = round3Contenders.slice(4);
 
       // R3 경기 생성
-      const round3Matches: Match[] = [];
+      const round3Matches: CustomMatch[] = [];
       for (let i = 0; i < round3Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -742,7 +748,7 @@ const generateSingleEliminationMatches = (
       const round2Bye = contenders[0];
       const round2Playing = contenders.slice(1);
 
-      const round2Matches: Match[] = [];
+      const round2Matches: CustomMatch[] = [];
       for (let i = 0; i < round2Playing.length / 2; i++) {
         const match = {
           id: uuidv4(),
@@ -791,8 +797,8 @@ const generateSingleEliminationMatches = (
       break;
     }
 
-    let playing: Match[];
-    let byes: Match[];
+    let playing: CustomMatch[];
+    let byes: CustomMatch[];
     let reorderedContenders = false;
 
     const currentLength = contenders.length;
@@ -809,7 +815,7 @@ const generateSingleEliminationMatches = (
       playing = contenders.slice(numByes);
     }
 
-    const currentRoundMatches: Match[] = [];
+    const currentRoundMatches: CustomMatch[] = [];
     if (playing.length > 1) {
       for (let i = 0; i < Math.floor(playing.length / 2); i++) {
         const match = {
@@ -849,7 +855,7 @@ const generateSingleEliminationMatches = (
   // 3. 준결승 및 결승 생성
   const semiFinalRound = round;
 
-  let finalists: Match[] = [];
+  let finalists: CustomMatch[] = [];
 
   if (contenders.length === 4) {
     // 정상적인 4강
@@ -926,7 +932,7 @@ const generateSingleEliminationMatches = (
 
   // 4. 결승전 생성
   if (finalists.length === 2) {
-    const final: Match = {
+    const final: CustomMatch = {
       id: uuidv4(),
       name: "Final",
       round: semiFinalRound + 1,
@@ -944,9 +950,10 @@ const generateSingleEliminationMatches = (
 
 // Free For All 매치 생성 함수
 const generateFreeForAllMatches = (
-  participants: Competitor[],
+  group: Group,
   totalRounds: number
-): Match[] => {
+): CustomMatch[] => {
+  const participants = group.competitors;
   return Array.from(
     {
       length: totalRounds,
@@ -955,6 +962,7 @@ const generateFreeForAllMatches = (
       id: uuidv4(),
       name: `Match ${i + 1}`,
       round: i + 1,
+      bestOf: 1 as 1 | 3 | 5,
       participants: participants.map(({ id, name }) => ({
         id,
         name: name || "",
@@ -964,8 +972,8 @@ const generateFreeForAllMatches = (
 };
 
 // 3. 라운드별로 매치 그룹화
-const groupMatchesByRound = (matches: Match[]) => {
-  const rounds: Record<number, Match[]> = {};
+const groupMatchesByRound = (matches: CustomMatch[]) => {
+  const rounds: Record<number, CustomMatch[]> = {};
   matches.forEach((m) => {
     if (!rounds[m.round]) rounds[m.round] = [];
     rounds[m.round].push(m);
@@ -974,7 +982,7 @@ const groupMatchesByRound = (matches: Match[]) => {
 };
 
 // 4. 노드/엣지 변환 및 위치 계산 (상위 라운드는 prevMatchIds의 y좌표 평균)
-const useSingleEliminationBracketNodesEdges = (matches: Match[]) => {
+const useSingleEliminationBracketNodesEdges = (matches: CustomMatch[]) => {
   const settingNodes = matches.filter((m) => m.isSettingNode);
   const thirdPlaceNode = matches.find((m) => m.isThirdPlace);
   const gameNodes = matches.filter((m) => !m.isSettingNode && !m.isThirdPlace);
@@ -991,7 +999,7 @@ const useSingleEliminationBracketNodesEdges = (matches: Match[]) => {
     if (round === 1) {
       // 1라운드: 등간격
       const totalHeight = rowHeight * roundMatches.length;
-      roundMatches.forEach((match: Match, idx: number) => {
+      roundMatches.forEach((match: CustomMatch, idx: number) => {
         const verticalGap = totalHeight / roundMatches.length;
         const y = idx * verticalGap + verticalGap / 2;
         nodeYMap[match.id] = y;
@@ -1010,7 +1018,7 @@ const useSingleEliminationBracketNodesEdges = (matches: Match[]) => {
       });
     } else {
       // 2라운드 이상: prevMatchIds의 y좌표 평균
-      roundMatches.forEach((match: Match) => {
+      roundMatches.forEach((match: CustomMatch) => {
         const prevYs = (match.prevMatchIds || [])
           .filter((pid): pid is string => pid !== null)
           .map((pid: string) => nodeYMap[pid]);
@@ -1067,7 +1075,11 @@ const useSingleEliminationBracketNodesEdges = (matches: Match[]) => {
 
   // 엣지 생성 (prevMatchIds 기반)
   matches.forEach((match) => {
-    if (match.prevMatchIds && match.prevMatchIds.length > 0) {
+    if (
+      match.prevMatchIds &&
+      match.prevMatchIds.length > 0 &&
+      !match.isThirdPlace
+    ) {
       match.prevMatchIds
         .filter((pid): pid is string => pid !== null)
         .forEach((prevId: string) => {
@@ -1089,98 +1101,35 @@ const useSingleEliminationBracketNodesEdges = (matches: Match[]) => {
   return { nodes, edges };
 };
 
-const useFreeForAllBracketNodesEdges = (
-  matches: Match[],
-  boardType: BoardType
-) => {
+const useFreeForAllBracketNodesEdges = (matches: CustomMatch[]) => {
   const columnWidth = 300;
   const rowHeight = 180;
   const nodes: Node[] = [];
   const nodeYMap: Record<string, number> = {};
-  const rounds = groupMatchesByRound(matches);
+  const gameNodes = matches.filter((m) => !m.isSettingNode && !m.isThirdPlace);
+  const settingNodes = matches.filter((m) => m.isSettingNode);
 
-  const setResult = matches
-    .filter((m) => !m.isSettingNode && !m.isThirdPlace)
-    .map((m) => m.result?.setResult)
-    .flat();
-
-  const setResultAcc = setResult.reduce((acc, curr) => {
-    if (curr && curr.id) {
-      acc[curr.id] = (acc[curr.id] ?? 0) + (curr.point ?? 0);
-    }
-    return acc as Record<string, number>;
-  }, {} as Record<string, number>);
-
-  const participants = matches.filter(
-    (m) => !m.isSettingNode && !m.isThirdPlace
-  )[0]?.participants;
-
-  const totalResult = Object.entries(setResultAcc)
-    .map(([id, point]) => ({
-      id,
-      name: participants?.find((p) => p.id === id)?.name || "",
-      point,
-    }))
-    .sort((a, b) => b.point - a.point);
-
-  const gameNodes =
-    boardType === BOARD_TYPE.RESULT
-      ? [
-          ...matches.filter((m) => !m.isSettingNode && !m.isThirdPlace),
-          {
-            id: uuidv4(),
-            round: Math.max(...Object.keys(rounds).map(Number)) + 1,
-            name: "Total",
-            participants: matches.filter(
-              (m) => !m.isSettingNode && !m.isThirdPlace
-            )[0].participants,
-            result: {
-              setResult: totalResult,
-            },
-          },
-        ]
-      : matches.filter((m) => !m.isSettingNode && !m.isThirdPlace);
-
-  const settingNodes =
-    boardType === BOARD_TYPE.RESULT
-      ? [
-          ...matches.filter((m) => m.isSettingNode),
-          {
-            id: uuidv4(),
-            round: Math.max(...Object.keys(rounds).map(Number)) + 1,
-            name: "Total",
-            isSettingNode: true,
-          },
-        ]
-      : matches.filter((m) => m.isSettingNode);
-
-  gameNodes.forEach((match: Match, idx: number) => {
+  gameNodes.forEach((match: CustomMatch) => {
     nodeYMap[match.id] = rowHeight;
     nodes.push({
       id: match.id,
       type: "matchNode",
       data: match,
       position: {
-        x:
-          idx === gameNodes.length - 1 && boardType === BOARD_TYPE.RESULT
-            ? (match.round - 1) * columnWidth + 100
-            : (match.round - 1) * columnWidth,
+        x: (match.round - 1) * columnWidth,
         y: rowHeight,
       },
       draggable: false,
     });
   });
 
-  settingNodes.forEach((match, idx: number) => {
+  settingNodes.forEach((match) => {
     nodes.push({
       id: match.id,
       type: "matchNode",
       data: match,
       position: {
-        x:
-          idx === settingNodes.length - 1 && boardType === BOARD_TYPE.RESULT
-            ? (match.round - 1) * columnWidth + 100
-            : (match.round - 1) * columnWidth,
+        x: (match.round - 1) * columnWidth,
         y: 100,
       },
       draggable: false,
@@ -1191,45 +1140,35 @@ const useFreeForAllBracketNodesEdges = (
 };
 
 // 5. 커스텀 노드 컴포넌트
-const MatchNode = ({
-  match,
-  matches,
-  boardType,
-  stage,
-  onSubmit,
-}: {
-  match: Match;
-  matches: Match[];
-  boardType: BoardType;
-  stage: Stage;
-  onSubmit: (data: { id: string; setting: MatchSetting }) => void;
-}) => {
+const MatchNode = (props: any) => {
+  const {
+    match,
+    matches,
+    stage,
+    onSubmit,
+    refereeData,
+  }: {
+    match: CustomMatch;
+    matches: CustomMatch[];
+    boardType: BoardType;
+    stage: CustomStage;
+    onSubmit: (data: { id: string; setting: MatchSetting }) => void;
+    refereeData: Referee[];
+  } = props.data;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   const { register, watch, setValue, handleSubmit, reset } =
     useForm<MatchSetting>();
 
-  const refereeData = [
-    "김심판",
-    "이심판",
-    "박심판",
-    "최심판",
-    "정심판",
-    "유심판",
-    "장심판",
-    "오심판",
-    "한심판",
-  ];
-
   useEffect(() => {
     if (isDialogOpen) {
       reset({
         round: match.round,
-        date: match.date,
-        time: match.time,
-        setType: match.setType || "single",
-        place: match.place,
+        scheduledDate: match.scheduledDate,
+        scheduledTime: match.scheduledTime,
+        bestOf: match.bestOf || 1,
+        venue: match.venue,
         referee: match.referee,
         isSettingNode: match.isSettingNode,
       });
@@ -1237,15 +1176,15 @@ const MatchNode = ({
   }, [isDialogOpen, match, reset]);
 
   const groupbyRooundMatches = useMemo(() => {
-    return groupBy(matches, (m: Match) => m.round);
+    return groupBy(matches, (m: CustomMatch) => m.round);
   }, [matches]);
 
   const getIsDifferentSetType = useCallback(
-    (match: Match) => {
+    (match: CustomMatch) => {
       const round = match.round;
       const roundMatches = groupbyRooundMatches[round] || [];
       const setTypes = Array.from(
-        new Set(roundMatches.map((m) => m.setType || ""))
+        new Set(roundMatches.map((m) => m.bestOf || ""))
       );
 
       if (setTypes.length === 0 || (setTypes.length === 1 && !setTypes[0])) {
@@ -1254,17 +1193,21 @@ const MatchNode = ({
       if (setTypes.length > 1) {
         return "혼합";
       }
-      return setTypes[0];
+      return setTypes[0] === 1
+        ? "단판"
+        : setTypes[0] === 3
+        ? "3판 2선승제"
+        : "5판 3선승제";
     },
     [groupbyRooundMatches]
   );
 
   const getIsDifferentDate = useCallback(
-    (match: Match) => {
+    (match: CustomMatch) => {
       const round = match.round;
       const roundMatches = groupbyRooundMatches[round] || [];
       const dates = roundMatches
-        .map((m) => m.date)
+        .map((m) => m.scheduledDate)
         .filter((d): d is Date => d !== undefined);
 
       if (dates.length === 0) return "일정선택";
@@ -1275,12 +1218,16 @@ const MatchNode = ({
       // 날짜가 다르면 범위로 표시
       if (
         firstDate.getTime() !== lastDate.getTime() ||
-        roundMatches.some((m) => m.date?.getTime() !== firstDate.getTime())
+        roundMatches.some(
+          (m) => m.scheduledDate?.getTime() !== firstDate.getTime()
+        )
       ) {
         return `${firstDate.toLocaleDateString()} - ${lastDate.toLocaleDateString()}`;
       }
       // 날짜가 같으면 시간도 체크
-      const times = Array.from(new Set(roundMatches.map((m) => m.time || "")));
+      const times = Array.from(
+        new Set(roundMatches.map((m) => m.scheduledTime || ""))
+      );
       if (times.length > 1) {
         return `${firstDate.toLocaleDateString()} (여러 시간)`;
       }
@@ -1311,25 +1258,6 @@ const MatchNode = ({
     setIsDialogOpen(false);
   };
 
-  const getIcon = () => {
-    if (boardType === BOARD_TYPE.EDIT) {
-      return <Settings className="w-4 h-4 text-zinc-400" />;
-    }
-    if (boardType === BOARD_TYPE.SHOW) {
-      return <ScanLine className="w-4 h-4" />;
-    }
-    if (boardType === BOARD_TYPE.RESULT) {
-      return match.participants &&
-        match.participants.length > 0 &&
-        match.participants.every((participant) => participant.name !== "") ? (
-        <ClipboardPlus className="w-4 h-4" />
-      ) : (
-        <></>
-      );
-    }
-    return <></>;
-  };
-
   const dialogContent = (
     <DialogContent className="sm:max-w-[425px]" showCloseButton={false}>
       <DialogHeader>
@@ -1347,8 +1275,8 @@ const MatchNode = ({
                   id="date-picker"
                   className="w-full justify-between font-normal text-sm"
                 >
-                  {watch("date") ? (
-                    watch("date")?.toLocaleDateString()
+                  {watch("scheduledDate") ? (
+                    watch("scheduledDate")?.toLocaleDateString()
                   ) : (
                     <div className="flex items-center gap-2 text-zinc-400">
                       <CalendarIcon className="w-4 h-4" />
@@ -1363,12 +1291,12 @@ const MatchNode = ({
                 align="start"
               >
                 <Calendar
-                  {...register("date")}
+                  {...register("scheduledDate")}
                   mode="single"
-                  selected={watch("date")}
+                  selected={watch("scheduledDate")}
                   captionLayout="dropdown"
                   onSelect={(date) => {
-                    setValue("date", date);
+                    setValue("scheduledDate", date);
                     setIsPopoverOpen(false);
                   }}
                 />
@@ -1378,39 +1306,40 @@ const MatchNode = ({
           <div className="w-full grid gap-3">
             <Label htmlFor="time-picker">경기 시간</Label>
             <Input
-              {...register("time")}
+              {...register("scheduledTime")}
               type="time"
               id="time-picker"
-              value={watch("time")}
-              onChange={(e) => setValue("time", e.target.value)}
+              value={watch("scheduledTime")}
+              onChange={(e) => setValue("scheduledTime", e.target.value)}
               className="w-full bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
             />
           </div>
         </div>
         <div className="grid gap-3">
-          <Label htmlFor="set-type">세트 방식</Label>
+          <Label htmlFor="best-of">세트 방식</Label>
           <Tabs
-            value={watch("setType")}
-            defaultValue="single"
-            onValueChange={(value) => setValue("setType", value)}
+            value={watch("bestOf")?.toString()}
+            onValueChange={(value) =>
+              setValue("bestOf", Number(value) as 1 | 3 | 5)
+            }
             className="w-full"
           >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger
                 className="dark:data-[state=active]:bg-zinc-950"
-                value="single"
+                value="1"
               >
                 단판
               </TabsTrigger>
               <TabsTrigger
                 className="dark:data-[state=active]:bg-zinc-950"
-                value="best-of-three"
+                value="3"
               >
                 3판 2선승제
               </TabsTrigger>
               <TabsTrigger
                 className="dark:data-[state=active]:bg-zinc-950"
-                value="best-of-five"
+                value="5"
               >
                 5판 3선승제
               </TabsTrigger>
@@ -1420,12 +1349,12 @@ const MatchNode = ({
         <div className="grid gap-3">
           <Label htmlFor="place">경기 장소</Label>
           <Input
-            {...register("place")}
-            id="place"
-            name="place"
-            value={watch("place")}
+            {...register("venue")}
+            id="venue"
+            name="venue"
+            value={watch("venue")}
             placeholder="장소를 입력해주세요"
-            onChange={(e) => setValue("place", e.target.value)}
+            onChange={(e) => setValue("venue", e.target.value)}
           />
         </div>
         <div className="grid gap-3">
@@ -1445,8 +1374,8 @@ const MatchNode = ({
               {refereeData &&
                 refereeData.length > 0 &&
                 refereeData.map((referee) => (
-                  <SelectItem key={referee} value={referee}>
-                    {referee}
+                  <SelectItem key={referee.id} value={referee.id.toString()}>
+                    {referee.firstName} {referee.lastName}
                   </SelectItem>
                 ))}
             </SelectContent>
@@ -1458,7 +1387,18 @@ const MatchNode = ({
                   key={idx}
                   className="flex items-center gap-2 border border-zinc-700 rounded-md px-2 py-1"
                 >
-                  <span>{referee}</span>
+                  <span>
+                    {
+                      refereeData?.find(
+                        (r: Referee) => r.id.toString() === referee
+                      )?.firstName
+                    }
+                    {
+                      refereeData?.find(
+                        (r: Referee) => r.id.toString() === referee
+                      )?.lastName
+                    }
+                  </span>
                   <XIcon
                     className="w-4 h-4 cursor-pointer text-zinc-400"
                     onClick={() => handleRemoveReferee(referee)}
@@ -1495,96 +1435,38 @@ const MatchNode = ({
   if (match.isSettingNode) {
     return (
       <div className="min-w-[200px]">
-        {boardType === BOARD_TYPE.EDIT && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button
-                variant="ghost"
-                className={`w-full h-full flex flex-col justify-start items-start gap-1 mb-2 p-0 dark:hover:bg-transparent ${
-                  boardType === BOARD_TYPE.EDIT
-                    ? "cursor-pointer"
-                    : "cursor-default pointer-events-none"
-                } `}
-              >
-                <div className="w-full flex justify-between items-center text-base font-bold">
-                  <span>{match.name}</span>
-                  {getIcon()}
-                </div>
-                <div className="flex items-center gap-1 text-xs text-zinc-400">
-                  <span>{getIsDifferentSetType(match)}</span>
-                  <div className="flex items-center justify-center h-[8px]">
-                    <Separator
-                      orientation="vertical"
-                      className="w-[1px] bg-zinc-400"
-                    />
-                  </div>
-                  <span>{getIsDifferentDate(match)}</span>
-                </div>
-                <Separator className="w-full mt-3 bg-zinc-700" />
-              </Button>
-            </DialogTrigger>
-            {dialogContent}
-          </Dialog>
-        )}
-        {boardType === BOARD_TYPE.SHOW && (
-          <div
-            className={`w-full h-full flex flex-col justify-start items-start gap-1 mb-2 p-0`}
-          >
-            <div className="w-full flex justify-between items-center text-base font-bold">
-              <span>{match.name}</span>
-              {getIcon()}
-            </div>
-            <div className="flex items-center gap-1 text-xs text-zinc-400">
-              <span>{getIsDifferentSetType(match)}</span>
-              <div className="flex items-center justify-center h-[8px]">
-                <Separator
-                  orientation="vertical"
-                  className="w-[1px] bg-zinc-400"
-                />
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button
+              variant="ghost"
+              className={`w-full h-full flex flex-col justify-start items-start gap-1 mb-2 p-0 dark:hover:bg-transparent ${"cursor-pointer"} `}
+            >
+              <div className="w-full flex justify-between items-center text-base font-bold">
+                <span>{match.name}</span>
+                <Settings className="w-4 h-4 text-zinc-400" />
               </div>
-              <span>{getIsDifferentDate(match)}</span>
-            </div>
-            <Separator className="w-full mt-3 bg-zinc-700" />
-          </div>
-        )}
-        {boardType === BOARD_TYPE.RESULT && (
-          <div
-            className={`w-full h-full flex flex-col justify-start items-start gap-1 mb-2 p-0`}
-          >
-            <div className="w-full flex justify-between items-center text-base font-bold">
-              <span>{match.name}</span>
-              {getIcon()}
-            </div>
-            <div className="flex items-center gap-1 text-xs text-zinc-400">
-              <span>{getIsDifferentSetType(match)}</span>
-              <div className="flex items-center justify-center h-[8px]">
-                <Separator
-                  orientation="vertical"
-                  className="w-[1px] bg-zinc-400"
-                />
+              <div className="flex items-center gap-1 text-xs text-zinc-400">
+                <span>{getIsDifferentSetType(match)}</span>
+                <div className="flex items-center justify-center h-[8px]">
+                  <Separator
+                    orientation="vertical"
+                    className="w-[1px] bg-zinc-400"
+                  />
+                </div>
+                <span>{getIsDifferentDate(match)}</span>
               </div>
-              <span>{getIsDifferentDate(match)}</span>
-            </div>
-            <Separator className="w-full mt-3 bg-zinc-700" />
-          </div>
-        )}
+              <Separator className="w-full mt-3 bg-zinc-700" />
+            </Button>
+          </DialogTrigger>
+          {dialogContent}
+        </Dialog>
       </div>
     );
   }
 
   return (
-    <div className="min-w-[200px] p-2 rounded-md bg-zinc-800 border border-zinc-700 relative">
+    <div className="max-w-[200px] min-w-[200px] p-2 rounded-md bg-zinc-800 border border-zinc-700 relative">
       {/* Total 노드에만 왼쪽 vertical line 추가 */}
-      {boardType === BOARD_TYPE.RESULT && match.name === "Total" && (
-        <div
-          className="absolute left-0 top-0 w-[1px] bg-zinc-400/30 rounded"
-          style={{
-            height: "calc(100% + 130px)",
-            bottom: "8px",
-            transform: "translateX(-80px) translateY(-80px)",
-          }}
-        />
-      )}
       {match.round !== 1 && (
         <Handle
           type="target"
@@ -1594,152 +1476,169 @@ const MatchNode = ({
         />
       )}
 
-      {boardType === BOARD_TYPE.EDIT && (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              className={`w-full h-full flex flex-col justify-start items-start gap-1 ${
-                boardType === BOARD_TYPE.EDIT
-                  ? "cursor-pointer"
-                  : "cursor-default pointer-events-none"
-              } mb-2 p-0`}
-            >
-              <div className="w-full flex justify-between items-center text-sm text-zinc-400">
-                <span>{match.name}</span>
-                {getIcon()}
-              </div>
-              <div className="flex items-center gap-1 text-xs text-zinc-400">
-                <span>{match.setType || "세트방식"}</span>
-                <div className="flex items-center justify-center h-[8px]">
-                  <Separator
-                    orientation="vertical"
-                    className="w-[1px] bg-zinc-400"
-                  />
-                </div>
-                <span>
-                  {match.date
-                    ? `${match.date.toLocaleDateString()} ${match.time || ""}`
-                    : "일정선택"}
-                </span>
-              </div>
-            </Button>
-          </DialogTrigger>
-          {dialogContent}
-        </Dialog>
-      )}
-
-      {boardType === BOARD_TYPE.SHOW && (
-        <div className="w-full h-full flex flex-col justify-start items-start gap-1 mb-2 p-0">
-          <div className="w-full flex justify-between items-center text-sm text-zinc-400">
-            <span>{match.name}</span>
-            {getIcon()}
-          </div>
-          <div className="flex items-center gap-1 text-xs text-zinc-400">
-            <span>{match.setType || "세트방식"}</span>
-            <div className="flex items-center justify-center h-[8px]">
-              <Separator
-                orientation="vertical"
-                className="w-[1px] bg-zinc-400"
-              />
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button
+            variant="ghost"
+            className={`w-full h-full flex flex-col justify-start items-start gap-1 ${"cursor-pointer"} mb-2 p-0`}
+          >
+            <div className="w-full flex justify-between items-center text-sm text-zinc-400">
+              <span>{match.name}</span>
+              <Settings className="w-4 h-4 text-zinc-400" />
             </div>
-            <span>
-              {match.date
-                ? `${match.date.toLocaleDateString()} ${match.time || ""}`
-                : "일정선택"}
-            </span>
-          </div>
-        </div>
-      )}
+            <div className="flex items-center gap-1 text-xs text-zinc-400">
+              <span>
+                {match.bestOf
+                  ? match.bestOf === 1
+                    ? "단판"
+                    : match.bestOf === 3
+                    ? "3판 2선승제"
+                    : "5판 3선승제"
+                  : "세트방식"}
+              </span>
+              <div className="flex items-center justify-center h-[8px]">
+                <Separator
+                  orientation="vertical"
+                  className="w-[1px] bg-zinc-400"
+                />
+              </div>
+              <span>
+                {match.scheduledDate
+                  ? `${match.scheduledDate.toLocaleDateString()} ${
+                      match.scheduledTime || ""
+                    }`
+                  : "일정선택"}
+              </span>
+            </div>
+          </Button>
+        </DialogTrigger>
+        {dialogContent}
+      </Dialog>
 
-      {boardType === BOARD_TYPE.RESULT && match.name !== "Total" && (
-        <MatchResultDrawer match={match} />
-      )}
-
-      {stage.bracketType === "SINGLE_ELIMINATION" && (
+      {stage.bracket?.format === "SINGLE_ELIMINATION" && (
         <div className="space-y-1">
           {match.participants &&
-            match.participants.map((participant, idx) => (
-              <div
-                key={idx}
-                className={`h-10 flex items-center justify-between p-2 rounded ${
-                  match.winner
-                    ? match.winner === participant.id
-                      ? "bg-zinc-950 text-white"
-                      : "bg-zinc-900 text-zinc-400"
-                    : participant.name
-                    ? "bg-zinc-950"
-                    : "bg-zinc-900"
-                } ${
-                  match.round === lastRound &&
-                  match.winner &&
-                  (match.winner === participant.id
-                    ? "border border-yellow-200"
-                    : "border border-sky-200")
-                }`}
-              >
-                <span className="font-medium">
-                  {participant.name || <span className="opacity-50"></span>}
-                </span>
-                {match.result &&
-                  match.result.setResult &&
-                  match.result.setResult.length > 0 && (
-                    <div className="flex items-center gap-4">
-                      {match.round === lastRound && (
-                        <span
-                          className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
+            match.participants.map(
+              (participant: { id: string; name: string }, idx: number) => (
+                <div
+                  key={idx}
+                  className={`h-10 flex items-center justify-between p-2 rounded ${
+                    match.winnerRosterId
+                      ? match.winnerRosterId === participant.id
+                        ? "bg-zinc-950 text-white"
+                        : "bg-zinc-900 text-zinc-400"
+                      : participant.name
+                      ? "bg-zinc-950"
+                      : "bg-zinc-900"
+                  } ${
+                    match.round === lastRound &&
+                    match.winnerRosterId &&
+                    (match.winnerRosterId === participant.id
+                      ? "border border-yellow-200"
+                      : "border border-sky-200")
+                  }`}
+                >
+                  <span className="font-medium truncate block">
+                    {participant.name || <span className="opacity-50"></span>}
+                  </span>
+                  {match.result &&
+                    match.result.setResult &&
+                    match.result.setResult.length > 0 && (
+                      <div className="flex items-center gap-4">
+                        {match.round === lastRound && match.winnerRosterId && (
+                          <span
+                            className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
                         ${
-                          match.winner === participant.id
+                          match.winnerRosterId === participant.id
                             ? "bg-yellow-400 text-yellow-600"
                             : "bg-sky-400 text-sky-600"
                         }`}
+                          >
+                            {match.winnerRosterId === participant.id
+                              ? "1"
+                              : "2"}
+                          </span>
+                        )}
+                        <span
+                          className={`text-sm ${
+                            match.winnerRosterId === participant.id
+                              ? "text-white"
+                              : "text-zinc-400"
+                          }`}
                         >
-                          {match.winner === participant.id ? "1" : "2"}
+                          {
+                            match.result.setResult.filter(
+                              (r: { winnerRosterId?: string }) =>
+                                r.winnerRosterId === participant.id
+                            ).length
+                          }
                         </span>
-                      )}
-                      <span
-                        className={`text-sm ${
-                          match.winner === participant.id
-                            ? "text-white"
-                            : "text-zinc-400"
-                        }`}
-                      >
-                        {
-                          match.result.setResult.filter(
-                            (r) => r.winner?.id === participant.id
-                          ).length
-                        }
-                      </span>
-                    </div>
-                  )}
-              </div>
-            ))}
+                      </div>
+                    )}
+                </div>
+              )
+            )}
         </div>
       )}
 
-      {stage.bracketType === "FREE_FOR_ALL" && (
+      {stage.bracket?.format === "FREE_FOR_ALL" && (
         <div className="space-y-1">
-          {(match.result?.setResult?.length
-            ? match.result.setResult
-            : match.participants
-          )?.map((participant, idx) => {
-            const point =
-              match.result?.setResult?.find?.((r) => r.id === participant.id)
-                ?.point ?? "";
-            return (
-              <div
-                key={participant.id ?? idx}
-                className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
-              >
-                <span className="font-medium">
-                  {participant.name || <span className="opacity-50"></span>}
-                </span>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm">{point}</span>
-                </div>
-              </div>
-            );
-          })}
+          {(() => {
+            const isSetResult =
+              match.result?.setResult?.length &&
+              match.result?.setResult?.length > 2;
+            if (isSetResult && match.result?.setResult) {
+              // setResult 타입: { id?: string; name?: string; point?: number; ... }
+              return match.result.setResult.map(
+                (
+                  participant: { id?: string; name?: string; point?: number },
+                  idx: number
+                ) => {
+                  const point = participant.point ?? "";
+                  return (
+                    <div
+                      key={participant.id ?? idx}
+                      className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
+                    >
+                      <span className="font-medium">
+                        {participant.name || (
+                          <span className="opacity-50"></span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm">{point}</span>
+                      </div>
+                    </div>
+                  );
+                }
+              );
+            } else {
+              // participants 타입: { id: string; name: string }
+              return match.participants?.map(
+                (participant: { id: string; name: string }, idx: number) => {
+                  const point =
+                    match.result?.setResult?.find?.(
+                      (r: { id?: string }) => r.id === participant.id
+                    )?.point ?? "";
+                  return (
+                    <div
+                      key={participant.id ?? idx}
+                      className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
+                    >
+                      <span className="font-medium">
+                        {participant.name || (
+                          <span className="opacity-50"></span>
+                        )}
+                      </span>
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm">{point}</span>
+                      </div>
+                    </div>
+                  );
+                }
+              );
+            }
+          })()}
         </div>
       )}
 
@@ -1757,12 +1656,12 @@ const MatchNode = ({
 
 // 싱글엘리미네이션 대진표 생성 함수 분리
 const buildSingleEliminationBracket = (
-  competitors: Competitor[],
-  isThirdPlace: boolean
-): Match[] => {
-  const initialMatches = generateSingleEliminationMatches(competitors);
+  group: Group,
+  hasThirdPlaceMatch: boolean
+): CustomMatch[] => {
+  const initialMatches = generateSingleEliminationMatches(group);
   const uniqueRounds = [...new Set(initialMatches.map((m) => m.round))];
-  if (isThirdPlace) {
+  if (hasThirdPlaceMatch) {
     initialMatches.push({
       id: uuidv4(),
       round: uniqueRounds.length,
@@ -1785,14 +1684,15 @@ const buildSingleEliminationBracket = (
 
 // 프리포올 대진표 생성 함수
 const buildFreeForAllBracket = (
-  competitors: Competitor[],
+  group: Group,
   totalRounds: number
-): Match[] => {
-  const initialMatches = generateFreeForAllMatches(competitors, totalRounds);
+): CustomMatch[] => {
+  const initialMatches = generateFreeForAllMatches(group, totalRounds);
 
   const uniqueRounds = [...new Set(initialMatches.map((m) => m.round))];
   const matchSettingNodes = uniqueRounds.map((round) => ({
     id: uuidv4(),
+    bestOf: 1 as 1 | 3 | 5,
     round,
     name: `Round ${round}`,
     isSettingNode: true,
@@ -1801,7 +1701,7 @@ const buildFreeForAllBracket = (
 };
 
 const updateMatches = (
-  matches: Match[],
+  matches: CustomMatch[],
   data: { id: string; setting: MatchSetting }
 ) => {
   const { setting } = data;
@@ -1810,10 +1710,10 @@ const updateMatches = (
       match.round === setting.round
         ? {
             ...match,
-            date: setting.date,
-            time: setting.time,
-            setType: setting.setType,
-            place: setting.place,
+            scheduledDate: setting.scheduledDate,
+            scheduledTime: setting.scheduledTime,
+            bestOf: setting.bestOf,
+            venue: setting.venue,
             referee: setting.referee,
           }
         : match
@@ -1823,10 +1723,10 @@ const updateMatches = (
       match.id === data.id
         ? {
             ...match,
-            date: setting.date,
-            time: setting.time,
-            setType: setting.setType,
-            place: setting.place,
+            scheduledDate: setting.scheduledDate,
+            scheduledTime: setting.scheduledTime,
+            bestOf: setting.bestOf,
+            venue: setting.venue,
             referee: setting.referee,
           }
         : match
@@ -1835,135 +1735,293 @@ const updateMatches = (
 };
 
 // 6. 메인 컴포넌트
-const BracketBoard = ({
+const BracketCreateEditBoard = ({
   stage = {
     id: "",
     name: "",
     competitors: [],
-    groups: [],
-    isThirdPlace: false,
-    bracketType: "SINGLE_ELIMINATION",
-    matches: [],
+    bracket: {
+      id: undefined,
+      format: "SINGLE_ELIMINATION",
+      hasThirdPlaceMatch: false,
+      groups: [],
+    },
   },
-  dispatch,
   selectedGroupId,
+  dispatch,
   onChangeGroupTab,
-  onDeleteBracket,
-  boardType,
   onClickControls,
+  onSaveBracket,
+  onDeleteBracket,
+  isFinishUpdate,
 }: BracketBoardProps) => {
   const navigate = useNavigate();
   const { isExpand } = useExpandStore();
   const { setGlobalStage } = useStageStore();
   const [groups, setGroups] = useState<Group[]>(
-    stage.groups.length > 0
-      ? stage.groups
+    stage.bracket?.groups?.length && stage.bracket?.groups?.length > 1
+      ? stage.bracket?.groups || []
       : [
           {
-            id: "default",
+            id: stage.bracket?.groups?.[0]?.id || "default",
             name: "전체",
-            competitors: stage.competitors,
+            competitors: stage.competitors || [],
             matches: [],
           },
         ]
   );
+  const { data: refereeData } = useGetReferees();
 
   useEffect(() => {
-    if (boardType !== BOARD_TYPE.EDIT) {
-      setGroups(stage.groups);
-      onChangeGroupTab?.(stage.groups[0].id);
-      return;
-    }
+    const normalizedGroups = [
+      {
+        id: stage.bracket?.groups?.[0]?.id || "default",
+        name: "전체",
+        competitors: stage.competitors || [],
+        matches: [],
+      },
+    ];
 
-    const normalizedGroups =
-      stage.groups.length > 0
-        ? stage.groups
-        : [
-            {
-              id: "default",
-              name: "전체",
-              competitors: stage.competitors,
-              matches: [],
-            },
-          ];
-    const newGroups = normalizedGroups.map((group) => ({
+    const groups =
+      stage.bracket?.groups?.length && stage.bracket?.groups?.length > 1
+        ? stage.bracket?.groups || []
+        : normalizedGroups;
+
+    const newGroups = groups.map((group) => ({
       ...group,
       matches:
-        stage.bracketType === "FREE_FOR_ALL"
-          ? buildFreeForAllBracket(group.competitors, stage.totalRounds || 1)
+        stage.bracket?.format === "FREE_FOR_ALL"
+          ? buildFreeForAllBracket(group, stage.totalRounds || 1)
           : buildSingleEliminationBracket(
-              group.competitors,
-              stage.isThirdPlace
+              group,
+              stage.bracket?.hasThirdPlaceMatch || false
             ),
     }));
 
     setGroups(newGroups);
-    onChangeGroupTab?.(newGroups[0].id);
-  }, [stage]);
+    dispatch?.({ type: "SET_GROUPS", payload: newGroups });
+    onChangeGroupTab?.(newGroups?.[0]?.id || "");
+  }, []);
+
+  useEffect(() => {
+    setGroups(stage.bracket?.groups || []);
+  }, [stage.bracket?.groups]);
+
+  const createThirdPlaceMatch = (group: Group) => {
+    // 마지막 라운드 번호를 구함
+    const lastRound = Math.max(
+      ...group.matches.map((m: CustomMatch) => m.round),
+      1
+    );
+    return {
+      id: uuidv4(),
+      round: lastRound,
+      name: "3,4위전",
+      participants: [
+        { id: "", name: "" },
+        { id: "", name: "" },
+      ],
+      isThirdPlace: true,
+    };
+  };
+
+  useEffect(() => {
+    if (
+      stage.bracket?.format !== "SINGLE_ELIMINATION" ||
+      !stage.bracket?.groups
+    )
+      return;
+
+    const newGroups = stage.bracket.groups.map((group) => {
+      const hasThirdPlace = group.matches.some((m) => m.isThirdPlace);
+      let matches = group.matches.filter((m) => !m.isThirdPlace);
+      if (stage.bracket?.hasThirdPlaceMatch && !hasThirdPlace) {
+        matches = [...matches, createThirdPlaceMatch(group)];
+      }
+      return { ...group, matches };
+    });
+
+    setGroups(newGroups);
+  }, [stage.bracket?.hasThirdPlaceMatch]);
+
+  const { mutateAsync: updateMatchMutate } = updateMatch();
+  const { mutateAsync: updateRoundMutate } = updateRound();
 
   const handleMatchSubmit = useCallback(
     (data: { id: string; setting: MatchSetting }) => {
-      setGroups((prevGroups: Group[]) =>
-        prevGroups.map((group) =>
-          group.id === selectedGroupId
-            ? { ...group, matches: updateMatches(group.matches, data) }
-            : group
-        )
+      if (!!isFinishUpdate) {
+        if (data.setting.isSettingNode) {
+          updateRoundMutate({
+            roundId: Number(data.id.split("-")[0]),
+            updateRoundDto: {
+              bestOf: data.setting.bestOf as UpdateRoundDtoBestOf,
+              refereeIds: data.setting.referee.map((referee) =>
+                Number(referee)
+              ),
+              scheduledDate: dayjs(data.setting.scheduledDate).format(
+                "YYYY-MM-DD"
+              ),
+              scheduledTime: data.setting.scheduledTime,
+              venue: data.setting.venue,
+            },
+          });
+        } else {
+          updateMatchMutate({
+            matchId: Number(data.id.split("-")[0]),
+            updateMatchDto: {
+              bestOf: data.setting.bestOf,
+              refereeIds: data.setting.referee.map((referee) =>
+                Number(referee)
+              ),
+              scheduledDate: dayjs(data.setting.scheduledDate).format(
+                "YYYY-MM-DD"
+              ),
+              scheduledTime: data.setting.scheduledTime,
+              venue: data.setting.venue,
+            },
+          });
+        }
+      }
+
+      const updatedGroups = groups.map((group) =>
+        group.id === selectedGroupId
+          ? {
+              ...group,
+              matches: updateMatches(group.matches, data),
+            }
+          : group
       );
+
+      dispatch?.({ type: "SET_GROUPS", payload: updatedGroups });
+
+      // setGroups((prevGroups: Group[]) =>
+      //   prevGroups.map((group) =>
+      //     group.id === selectedGroupId
+      //       ? { ...group, matches: updateMatches(group.matches, data) }
+      //       : group
+      //   )
+      // );
+
       toast.success("경기 정보가 저장되었습니다.");
     },
-    [setGroups, selectedGroupId]
+    [setGroups, selectedGroupId, groups]
   );
 
   const handleDeleteBracket = () => {
     onDeleteBracket?.();
   };
 
-  const handleSaveBracket = () => {
+  const handleSaveBracket = async () => {
     setGlobalStage({
       ...stage,
-      groups,
+      bracket: {
+        ...stage.bracket,
+        groups,
+      },
     });
-    navigate("/bracket");
+
+    if (isFinishUpdate === false) {
+      navigate("/bracket");
+      toast.success("대진표가 수정되었습니다.");
+      return;
+    }
+
+    const initializeBracketStructureDto: InitializeBracketStructureDto = {
+      bracketGroups: groups.map((group, index) => {
+        const roundsNodes = group.matches.filter(
+          (match) => match.isSettingNode
+        );
+        const matchesNodes = group.matches.filter(
+          (match) => !match.isSettingNode
+        );
+
+        const finalMatch = matchesNodes.find(
+          (match) => match.round === roundsNodes.length
+        );
+
+        const rounds: BracketStructureRoundDto[] = roundsNodes.map((round) => ({
+          bestOf: round.bestOf || 0,
+          name: round.name || "",
+          refereeIds: round.referee?.map((referee) => Number(referee)) || [],
+          roundNumber: round.round,
+          scheduledDate: dayjs(round.scheduledDate).format("YYYY-MM-DD"),
+          scheduledTime: round.scheduledTime || "",
+          tempId: round.id,
+          venue: round.venue || "",
+        }));
+
+        const matches: BracketStructureMatchDto[] = matchesNodes.map(
+          (match, index) => ({
+            bestOf: match.bestOf || 0,
+            matchNumber: index + 1,
+            name: match.name,
+            participants:
+              match.participants &&
+              match.participants.every((p) => p.name && p.id)
+                ? match.participants.map((participant) => ({
+                    rosterId: Number(participant.id),
+                  }))
+                : [],
+            prevTempMatchIds: match.isThirdPlace
+              ? finalMatch?.prevMatchIds?.map((id) => id || "") || []
+              : match.prevMatchIds && match.prevMatchIds.length > 0
+              ? match.prevMatchIds.map((id) => id || "")
+              : [],
+            refereeIds: match.referee?.map((referee) => Number(referee)) || [],
+            scheduledDate: dayjs(match.scheduledDate).format("YYYY-MM-DD"),
+            scheduledTime: match.scheduledTime || "",
+            tempId: match.id,
+            tempRoundId:
+              roundsNodes.find((r) => r.round === match.round)?.id || "",
+            venue: match.venue || "",
+          })
+        );
+
+        return {
+          id: Number(stage.bracket?.groups?.[index]?.id) || 0,
+          rounds,
+          matches,
+        };
+      }),
+      formatOptions: {
+        hasThirdPlaceMatch: stage.bracket?.hasThirdPlaceMatch || false,
+      },
+    };
+
+    onSaveBracket?.(initializeBracketStructureDto);
   };
 
   const handleClickControls = (menu: CustomControlMenuType) => {
     onClickControls?.(menu);
   };
 
-  const nodeTypes = useMemo(
-    () => ({
-      matchNode: (props: { data: Match }) => (
-        <MatchNode
-          match={props.data}
-          matches={
-            groups.length > 1
-              ? groups.find((group) => group.id === selectedGroupId)?.matches ||
-                []
-              : groups[0].matches
-          }
-          stage={stage}
-          boardType={boardType}
-          onSubmit={handleMatchSubmit}
-        />
-      ),
-    }),
-    [handleMatchSubmit, selectedGroupId, groups]
-  );
+  const nodeTypes = {
+    matchNode: MatchNode,
+  };
 
   const { nodes, edges } =
-    stage.bracketType === "FREE_FOR_ALL"
-      ? groups.length > 1
-        ? useFreeForAllBracketNodesEdges(
-            groups.find((group) => group.id === selectedGroupId)?.matches || [],
-            boardType
-          )
-        : useFreeForAllBracketNodesEdges(groups[0].matches, boardType)
-      : groups.length > 1
-      ? useSingleEliminationBracketNodesEdges(
+    stage.bracket?.format === "FREE_FOR_ALL"
+      ? useFreeForAllBracketNodesEdges(
           groups.find((group) => group.id === selectedGroupId)?.matches || []
         )
-      : useSingleEliminationBracketNodesEdges(groups[0].matches);
+      : useSingleEliminationBracketNodesEdges(
+          groups.find((group) => group.id === selectedGroupId)?.matches || []
+        );
+
+  // nodes 배열을 생성할 때, 각 노드의 data에 필요한 모든 정보 포함
+  const nodesWithData = nodes.map((node) => ({
+    ...node,
+    data: {
+      match: node.data,
+      matches:
+        groups.length > 1
+          ? groups.find((group) => group.id === selectedGroupId)?.matches || []
+          : groups[0].matches,
+      stage,
+      onSubmit: handleMatchSubmit,
+      refereeData: refereeData,
+    },
+  }));
 
   return (
     <div
@@ -1973,7 +2031,7 @@ const BracketBoard = ({
     >
       <div className="w-full h-full flex justify-between items-center">
         <ReactFlow
-          nodes={nodes}
+          nodes={nodesWithData}
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
@@ -1987,7 +2045,7 @@ const BracketBoard = ({
           connectOnClick={false}
           style={{ height: "calc(100% - 100px)" }}
         >
-          <Background gap={32} color="#222" />
+          {/* <Background gap={32} color="#222" /> */}
           {groups.length > 1 && selectedGroupId && (
             <GroupToggleButton
               groups={groups}
@@ -1995,69 +2053,21 @@ const BracketBoard = ({
               onChange={onChangeGroupTab}
             />
           )}
-          {stage.bracketType === "SINGLE_ELIMINATION" &&
-            boardType === BOARD_TYPE.EDIT && (
-              <ThirdPlaceToggleButton
-                stage={stage}
-                onChange={() =>
-                  dispatch && dispatch({ type: "TOGGLE_THIRD_PLACE" })
-                }
-              />
-            )}
+          {stage.bracket?.format === "SINGLE_ELIMINATION" && (
+            <ThirdPlaceToggleButton
+              stage={stage}
+              onChange={() =>
+                dispatch && dispatch({ type: "TOGGLE_THIRD_PLACE" })
+              }
+            />
+          )}
           <CustomControls
-            menus={
-              boardType === BOARD_TYPE.EDIT || boardType === BOARD_TYPE.RESULT
-                ? ["ZOOM_IN", "ZOOM_OUT", "EXPAND"]
-                : ["ZOOM_IN", "ZOOM_OUT", "EXPAND", "EDIT", "DELETE"]
-            }
+            menus={["ZOOM_IN", "ZOOM_OUT", "EXPAND"]}
             onClick={handleClickControls}
           />
         </ReactFlow>
       </div>
-      {boardType === BOARD_TYPE.SHOW && !isExpand && (
-        <div className="flex justify-end gap-2 mt-4">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                size="lg"
-                variant="outline"
-                className="bg-zinc-950 text-white cursor-pointer"
-              >
-                대진표 삭제
-              </Button>
-            </DialogTrigger>
-            <DialogContent showCloseButton={false}>
-              <DialogHeader>
-                <DialogTitle>대진표를 삭제하시겠습니까?</DialogTitle>
-                <DialogDescription>
-                  대진표를 삭제하면 복구할 수 없어요.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="outline" className="cursor-pointer">
-                    취소
-                  </Button>
-                </DialogClose>
-                <Button
-                  className="bg-red-900 text-white cursor-pointer hover:bg-red-900/90"
-                  onClick={handleDeleteBracket}
-                >
-                  삭제
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button
-            size="lg"
-            className="cursor-pointer"
-            onClick={handleSaveBracket}
-          >
-            저장
-          </Button>
-        </div>
-      )}
-      {boardType === BOARD_TYPE.EDIT && !isExpand && (
+      {!isExpand && (
         <div className="flex justify-end gap-2 mt-4">
           <Dialog>
             <DialogTrigger asChild>
@@ -2104,4 +2114,4 @@ const BracketBoard = ({
   );
 };
 
-export default BracketBoard;
+export default BracketCreateEditBoard;

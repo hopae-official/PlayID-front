@@ -8,8 +8,10 @@
 import type { SetParticipantStatSaveDtoStatPayload } from './setParticipantStatSaveDtoStatPayload';
 
 export interface SetParticipantStatSaveDto {
-  /** Stat ID */
-  id: number;
+  /** 세트 결과 ID */
+  matchSetResultId: number;
+  /** 참가자 rosterId */
+  rosterId: number;
   /** Stat 페이로드 */
   statPayload: SetParticipantStatSaveDtoStatPayload;
 }

@@ -1,9 +1,9 @@
-import type { Stage } from "@/pages/Bracket/BracketCreate";
+import type { CustomStage } from "@/pages/Bracket/BracketCreate";
 import { create } from "zustand";
 
 interface StageStore {
-  globalStage: Stage | null;
-  setGlobalStage: (stage: Stage | null) => void;
+  globalStage: CustomStage | null;
+  setGlobalStage: (stage: CustomStage | null) => void;
 }
 
 export const useStageStore = create<StageStore>((set) => ({

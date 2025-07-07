@@ -9,7 +9,11 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { Competitor, Group, Stage } from "@/pages/Bracket/BracketCreate";
+import type {
+  Competitor,
+  CustomStage,
+  Group,
+} from "@/pages/Bracket/BracketCreate";
 import { useState, useEffect, useCallback } from "react";
 import type {
   ColumnDef,
@@ -35,12 +39,24 @@ import {
 } from "../ui/table";
 import { Checkbox } from "../ui/checkbox";
 import { toast } from "sonner";
+import type { Stage } from "@/api/model";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getStage } from "@/queries/stage";
+import { getBracket } from "@/queries/bracket";
 
 interface AssignCompetitorDialogProps {
-  stage?: Stage;
+  stage?: CustomStage;
+  stages?: Stage[];
+  group?: Group;
   place?: number;
   selectedGroupId?: string;
-  rosters?: Competitor[];
+  rosters?: CustomRoster[];
   onAssignBracket?: (competitors: Competitor[]) => void;
 }
 
@@ -49,68 +65,108 @@ interface AssignStatus {
   isAssigned: boolean;
 }
 
+export type CustomRoster = {
+  rosterId: string;
+  name: string;
+  gameId?: string;
+  ranking?: string;
+  isTeam?: boolean;
+};
+
 const getColumns = (
   setRowSelection: (val: Record<string, boolean>) => void,
   place: number,
-  rosters: Competitor[],
+  rosters: CustomRoster[],
   competitors: Competitor[],
-  selectedGroupId: string,
-  selectedRosterIds: string[]
-): ColumnDef<Competitor>[] => [
-  {
-    id: "selectAndName",
-    header: ({ table }: { table: any }) => (
-      <span className="flex items-center gap-2">
-        <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && "indeterminate")
-          }
-          onCheckedChange={() => {
-            if (table.getSelectedRowModel().rows.length === place) {
-              setRowSelection({});
-            } else {
-              const newRowSelection: Record<string, boolean> = {};
-              if (selectedRosterIds.length > 0) {
-                for (let i = 0; i < place + selectedRosterIds.length; i++) {
-                  if (selectedRosterIds.includes(rosters[i].id)) {
-                    newRowSelection[table.getRowModel().rows[i].id] = false;
-                  } else {
+  selectedRosterIds: string[],
+  isTeam: boolean,
+  isFirstStage: boolean
+): ColumnDef<CustomRoster>[] => {
+  const baseColumns: ColumnDef<CustomRoster>[] = [
+    {
+      id: "selectAndName",
+      header: ({ table }: { table: any }) => (
+        <span className="flex items-center gap-2">
+          <Checkbox
+            checked={
+              table.getIsAllPageRowsSelected() ||
+              (table.getIsSomePageRowsSelected() && "indeterminate")
+            }
+            onCheckedChange={() => {
+              if (table.getSelectedRowModel().rows.length === place) {
+                setRowSelection({});
+              } else {
+                const newRowSelection: Record<string, boolean> = {};
+                if (selectedRosterIds.length > 0) {
+                  for (let i = 0; i < place + selectedRosterIds.length; i++) {
+                    if (selectedRosterIds.includes(rosters[i].rosterId)) {
+                      newRowSelection[table.getRowModel().rows[i].id] = false;
+                    } else {
+                      newRowSelection[table.getRowModel().rows[i].id] = true;
+                    }
+                  }
+                } else {
+                  for (let i = 0; i < place && i < rosters.length; i++) {
                     newRowSelection[table.getRowModel().rows[i].id] = true;
                   }
                 }
-              } else {
-                for (let i = 0; i < place && i < rosters.length; i++) {
-                  newRowSelection[table.getRowModel().rows[i].id] = true;
-                }
+                setRowSelection(newRowSelection);
               }
-              setRowSelection(newRowSelection);
-            }
-          }}
-          aria-label="Select all"
-        />
-        선수명
-      </span>
-    ),
-    cell: ({ row }: { row: Row<Competitor> }) => {
-      const isDisabled =
-        selectedRosterIds.length > 0 &&
-        selectedRosterIds.includes(row.original.id);
-      return (
-        <span className="flex items-center gap-2">
-          <Checkbox
-            checked={row.getIsSelected()}
-            disabled={isDisabled}
-            onCheckedChange={(value) => {
-              if (value && competitors.length === place) {
-                toast.error("참가팀 수를 초과할 수 없습니다.");
-                return;
-              }
-              row.toggleSelected(!!value);
             }}
-            aria-label="Select row"
+            aria-label="Select all"
           />
-          <span
+          {isTeam ? "팀명" : "선수명"}
+        </span>
+      ),
+      cell: ({ row }: { row: Row<CustomRoster> }) => {
+        const isDisabled =
+          selectedRosterIds.length > 0 &&
+          selectedRosterIds.includes(row.original.rosterId);
+
+        return (
+          <span className="flex items-center gap-2">
+            <Checkbox
+              checked={row.getIsSelected()}
+              disabled={isDisabled}
+              onCheckedChange={(value) => {
+                if (value && competitors.length === place) {
+                  toast.error("참가팀 수를 초과할 수 없습니다.");
+                  return;
+                }
+                row.toggleSelected(!!value);
+              }}
+              aria-label="Select row"
+            />
+            <span
+              className={
+                isDisabled
+                  ? "line-through text-gray-400 opacity-60 cursor-not-allowed"
+                  : ""
+              }
+              title={
+                isDisabled ? "이미 다른 그룹에 배정된 선수입니다" : undefined
+              }
+            >
+              {row.original.name}
+            </span>
+          </span>
+        );
+      },
+      enableSorting: false,
+      enableHiding: false,
+    },
+  ];
+
+  if (!isTeam) {
+    baseColumns.push({
+      accessorKey: "gameId",
+      header: "게임ID",
+      cell: ({ row }: { row: Row<CustomRoster> }) => {
+        const isDisabled =
+          selectedRosterIds.length > 0 &&
+          selectedRosterIds.includes(row.original.rosterId);
+        return (
+          <div
             className={
               isDisabled
                 ? "line-through text-gray-400 opacity-60 cursor-not-allowed"
@@ -120,39 +176,46 @@ const getColumns = (
               isDisabled ? "이미 다른 그룹에 배정된 선수입니다" : undefined
             }
           >
-            {row.original.name}
-          </span>
-        </span>
-      );
-    },
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "id",
-    header: "게임ID",
-    cell: ({ row }: { row: Row<Competitor> }) => {
-      const isDisabled =
-        selectedRosterIds.length > 0 &&
-        selectedRosterIds.includes(row.original.id);
-      return (
-        <div
-          className={
-            isDisabled
-              ? "line-through text-gray-400 opacity-60 cursor-not-allowed"
-              : ""
-          }
-          title={isDisabled ? "이미 다른 그룹에 배정된 선수입니다" : undefined}
-        >
-          {row.getValue("id")}
-        </div>
-      );
-    },
-  },
-];
+            {row.getValue("gameId")}
+          </div>
+        );
+      },
+    });
+  }
+
+  if (!isFirstStage) {
+    baseColumns.push({
+      accessorKey: "ranking",
+      header: "이전 스테이지 결과",
+      cell: ({ row }: { row: Row<CustomRoster> }) => {
+        const isDisabled =
+          selectedRosterIds.length > 0 &&
+          selectedRosterIds.includes(row.original.rosterId);
+
+        return (
+          <div
+            className={
+              isDisabled
+                ? "line-through text-gray-400 opacity-60 cursor-not-allowed"
+                : ""
+            }
+            title={
+              isDisabled ? "이미 다른 그룹에 배정된 선수입니다" : undefined
+            }
+          >
+            {row.getValue("ranking")}위
+          </div>
+        );
+      },
+    });
+  }
+
+  return baseColumns;
+};
 
 const AssignCompetitorDialog = ({
   stage,
+  stages,
   rosters,
   place,
   selectedGroupId,
@@ -165,47 +228,45 @@ const AssignCompetitorDialog = ({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [assignData, setAssignData] = useState<AssignStatus[]>(
-    stage?.groups?.length && stage.groups.length > 0
-      ? stage.groups.map((group) => ({
+    stage?.bracket?.groups && stage.bracket.groups.length > 0
+      ? stage.bracket.groups.map((group) => ({
           id: group.id,
           isAssigned: false,
         }))
       : [{ id: stage?.id ?? "", isAssigned: false }]
   );
   const [selectedRosterIds, setSelectedRosterIds] = useState<string[]>([]);
+  const [selectedPreviousStageId, setSelectedPreviousStageId] =
+    useState<number>();
+  const { data: selectedPreviousStage } = getStage(
+    selectedPreviousStageId ?? 0
+  );
+  const { data: selectedPreviousStageBracket } = getBracket(
+    selectedPreviousStage?.brackets[0]?.id ?? 0
+  );
+  const [rostersWithRanking, setRostersWithRanking] = useState<CustomRoster[]>(
+    []
+  );
+  const previousStages = stages?.slice(
+    0,
+    stages?.findIndex((s) => s.id === Number(stage?.id))
+  );
+  const isFirstStage =
+    stages?.findIndex((s) => s.id === Number(stage?.id)) === 0;
 
   // selectedRosterIds 초기화
   useEffect(() => {
     if (!isOpen) setSelectedRosterIds([]);
-  }, [isOpen]);
 
-  // 다이얼로그 열릴 때 상태 세팅 함수
-  const initializeDialogState = () => {
-    let baseCompetitors: Competitor[] = [];
-    if (stage?.groups && stage.groups.length > 0) {
-      baseCompetitors =
-        stage.groups.find((g) => g.id === selectedGroupId)?.competitors ?? [];
-      const allSelectedCompetitors = stage.groups
-        .filter((g) => g.id !== selectedGroupId)
-        .flatMap((g) => g.competitors);
-      const allSelectedIds = new Set(allSelectedCompetitors.map((c) => c.id));
-      setSelectedRosterIds(
-        rosters
-          ?.map((roster) => roster.id)
-          .filter((id) => allSelectedIds.has(id)) ?? []
-      );
-    } else {
-      baseCompetitors = stage?.competitors ?? [];
-    }
-    setCompetitors(baseCompetitors);
-    const initialSelection: Record<string, boolean> = {};
-    table.getRowModel().rows.forEach((row) => {
-      if (baseCompetitors.find((c) => c.id === row.original.id)) {
-        initialSelection[row.id] = true;
-      }
-    });
-    setRowSelection(initialSelection);
-  };
+    // if (stages?.findIndex((s) => s.id === Number(stage?.id)) !== 0) {
+    //   setCustomRosters(
+    //     rosters?.map((roster) => ({
+    //       ...roster,
+    //       ranking: stages?.findIndex((s) => s.id === Number(stage?.id)) + 1,
+    //     })) ?? []
+    //   );
+    // }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen) initializeDialogState();
@@ -214,11 +275,207 @@ const AssignCompetitorDialog = ({
 
   useEffect(() => {
     const selectedRows = table.getSelectedRowModel().rows;
-    setCompetitors(selectedRows.map((row) => row.original));
+    setCompetitors(
+      selectedRows.map((row) => ({
+        id: row.original.rosterId,
+        name: row.original.name,
+      }))
+    );
   }, [rowSelection]);
 
+  useEffect(() => {
+    if (selectedPreviousStageBracket) {
+      if (selectedPreviousStageBracket.format === "SINGLE_ELIMINATION") {
+        selectedPreviousStageBracket.groups.forEach((group, index) => {
+          const rounds = group.rounds;
+
+          const selectedPreviousStageParticipants =
+            selectedPreviousStageBracket.groups[
+              index
+            ].rounds[0].matches.flatMap((match) => match.matchParticipants);
+
+          const rankingMap: Record<string, number> = {};
+          let currentRank = 1;
+
+          for (let i = rounds.length - 1; i >= 0; i--) {
+            const round = rounds[i];
+            const matches = round.matches;
+
+            if (i === rounds.length - 1) {
+              // 결승/3,4위전
+              matches.forEach((match, matchIdx) => {
+                match.matchParticipants?.forEach((participant) => {
+                  if (participant.isWinner) {
+                    rankingMap[participant.rosterId] = matchIdx === 0 ? 1 : 3;
+                  } else {
+                    rankingMap[participant.rosterId] = matchIdx === 0 ? 2 : 4;
+                  }
+                });
+              });
+              currentRank = matches.length > 1 ? 5 : 3;
+            } else {
+              // 하위 라운드(공동 순위)
+              const losers: string[] = [];
+              matches.forEach((match) => {
+                match.matchParticipants?.forEach((participant) => {
+                  if (!participant.isWinner) {
+                    losers.push(participant.rosterId.toString());
+                  }
+                });
+              });
+              losers.forEach((rosterId) => {
+                rankingMap[rosterId] = currentRank; // 공동 순위 부여
+              });
+              currentRank += losers.length; // 다음 공동 순위로 이동
+            }
+          }
+
+          const newRostersWithRanking = (
+            selectedPreviousStageParticipants ?? []
+          ).map((roster) => {
+            let rosterIdStr: string = "";
+            if (typeof roster.rosterId === "number") {
+              rosterIdStr = roster.rosterId.toString();
+            } else if (typeof roster.rosterId === "string") {
+              rosterIdStr = roster.rosterId;
+            }
+            return {
+              rosterId: rosterIdStr,
+              name: roster.roster.team
+                ? roster.roster.team.name
+                : roster.roster.player?.organization || "",
+              gameId: roster.roster.player?.gameId,
+              ranking: rankingMap[rosterIdStr] ?? undefined,
+            };
+          });
+
+          const sortedRosters = [...newRostersWithRanking].sort((a, b) => {
+            if (a.ranking === undefined) return 1;
+            if (b.ranking === undefined) return -1;
+            return a.ranking - b.ranking;
+          });
+
+          setRostersWithRanking((prev) => [
+            ...prev,
+            ...sortedRosters.map((roster) => ({
+              ...roster,
+              ranking:
+                selectedPreviousStageBracket.groups.length > 1
+                  ? `${selectedPreviousStageBracket.groups[index].name}조 ${roster.ranking}`
+                  : `${roster.ranking}`,
+            })),
+          ]);
+        });
+      } else if (selectedPreviousStageBracket.format === "FREE_FOR_ALL") {
+        // 1. 참가자별 point 합산
+        const pointMap: Record<string, number> = {};
+
+        // 하... 이걸 프론트에서 이런식으로 보여주면 안될 것 같은데... 일단 시간 없으니 진행
+        selectedPreviousStageBracket.groups.forEach((group) => {
+          group.rounds.forEach((round) => {
+            round.matches.forEach((match) => {
+              match.matchSetResults?.forEach((result) => {
+                result.matchSetParticipantStats?.forEach((stat) => {
+                  const rosterId = match.matchParticipants?.find(
+                    (participant) => participant.id === stat.matchParticipantId
+                  )?.rosterId;
+                  const point = stat.statPayload?.point ?? 0;
+                  if (rosterId) {
+                    pointMap[rosterId] =
+                      Number(pointMap[rosterId] ?? 0) + Number(point);
+                  }
+                });
+              });
+            });
+          });
+        });
+
+        // 2. 참가자 정보와 합산된 point를 매핑
+        const newRostersWithPoint = Object.entries(pointMap).map(
+          ([rosterId, point]) => {
+            const roster = (rosters ?? []).find((r) => r.rosterId === rosterId);
+            return {
+              rosterId,
+              name: roster?.name ?? "",
+              gameId: roster?.gameId,
+              point,
+              ranking: undefined,
+            };
+          }
+        );
+
+        //3. point 기준 내림차순
+        const sortedRosters = [...newRostersWithPoint].sort(
+          (a, b) => b.point - a.point
+        );
+
+        // 공동 순위 부여
+        let lastPoint: number | null = null;
+        let lastRank = 0;
+        const newRostersWithRanking = sortedRosters.map((roster, index) => {
+          if (roster.point === lastPoint) {
+            return {
+              ...roster,
+              ranking: lastRank,
+            };
+          } else {
+            lastRank = index + 1;
+            lastPoint = roster.point;
+            return {
+              ...roster,
+              ranking: lastRank,
+            };
+          }
+        });
+
+        setRostersWithRanking(
+          newRostersWithRanking.map((roster) => ({
+            ...roster,
+            ranking:
+              selectedPreviousStageBracket.groups.length > 1
+                ? `${selectedPreviousStageBracket.groups[0].name}조 ${roster.ranking}`
+                : `${roster.ranking}`,
+          }))
+        );
+      }
+    }
+  }, [selectedPreviousStageBracket, rosters]);
+
+  // 다이얼로그 열릴 때 상태 세팅 함수
+  const initializeDialogState = () => {
+    let baseCompetitors: Competitor[] = [];
+
+    if (stage?.bracket?.groups && stage.bracket.groups.length > 0) {
+      baseCompetitors =
+        stage.bracket.groups
+          .find((g) => g.id === selectedGroupId)
+          ?.matches.flatMap((m) => m.participants ?? []) ?? [];
+
+      const allSelectedCompetitors = stage.bracket.groups
+        .filter((g) => g.id !== selectedGroupId)
+        .flatMap((g) => g.matches.flatMap((m) => m.participants ?? []));
+      const allSelectedIds = new Set(allSelectedCompetitors.map((c) => c.id));
+
+      setSelectedRosterIds(
+        rosters
+          ?.map((roster) => roster.rosterId)
+          .filter((id) => allSelectedIds.has(id)) ?? []
+      );
+    } else {
+      baseCompetitors = stage?.competitors ?? [];
+    }
+    setCompetitors(baseCompetitors);
+    const initialSelection: Record<string, boolean> = {};
+    table.getRowModel().rows.forEach((row) => {
+      if (baseCompetitors.find((c) => c.id === row.original.rosterId)) {
+        initialSelection[row.id] = true;
+      }
+    });
+    setRowSelection(initialSelection);
+  };
+
   const isFinishAssignCompetitors = (() => {
-    if (stage?.groups && stage.groups.length > 0) {
+    if (stage?.bracket?.groups && stage.bracket.groups.length > 0) {
       return !!assignData.find((data) => data.id === selectedGroupId)
         ?.isAssigned;
     }
@@ -230,11 +487,12 @@ const AssignCompetitorDialog = ({
     place ?? 0,
     rosters ?? [],
     competitors ?? [],
-    selectedGroupId ?? "",
-    selectedRosterIds ?? []
+    selectedRosterIds ?? [],
+    rosters?.some((roster) => roster.isTeam) ?? false,
+    isFirstStage
   );
   const table = useReactTable({
-    data: rosters ?? [],
+    data: isFirstStage ? rosters ?? [] : rostersWithRanking ?? [],
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -257,7 +515,7 @@ const AssignCompetitorDialog = ({
       return;
     }
     setAssignData((prev) => {
-      if (stage?.groups && stage.groups.length > 0) {
+      if (stage?.bracket?.groups && stage.bracket.groups.length > 0) {
         return prev.map((data) =>
           data.id === selectedGroupId ? { ...data, isAssigned: true } : data
         );
@@ -272,7 +530,7 @@ const AssignCompetitorDialog = ({
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button className="w-full font-semibold cursor-pointer" size="lg">
-          {stage && stage.groups.length > 0
+          {stage && stage.bracket?.groups && stage.bracket.groups.length > 0
             ? isFinishAssignCompetitors
               ? "조 대진 재배정"
               : "조 대진 배정"
@@ -281,88 +539,199 @@ const AssignCompetitorDialog = ({
             : "대진 배정"}
         </Button>
       </DialogTrigger>
-      <DialogContent className="w-[400px] flex flex-col">
+      <DialogContent className="min-w-[400px] flex flex-col">
         <DialogHeader>
-          <DialogTitle>{`${stage?.name} - 대진 배정`}</DialogTitle>
+          <DialogTitle>
+            {stage?.bracket?.groups && stage.bracket.groups.length > 1
+              ? `${stage?.name} - ${
+                  stage?.bracket.groups.find((g) => g.id === selectedGroupId)
+                    ?.name
+                }조 - 대진 배정`
+              : `${stage?.name} - 대진 배정`}
+          </DialogTitle>
           <DialogDescription>로스터 확정팀만 조회됩니다.</DialogDescription>
         </DialogHeader>
-        <div className="rounded-md border">
-          <Table className="table-fixed w-full">
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    );
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-          </Table>
-          <div className="max-h-[60vh] overflow-y-auto scrollbar-hide">
-            <Table className="table-fixed w-full">
-              <TableBody>
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
+
+        {!isFirstStage && (
+          <div className="flex flex-col gap-2 mt-4">
+            <span className="text-sm font-semibold">이전 스테이지 선택</span>
+            <Select
+              onValueChange={(value) => {
+                setSelectedPreviousStageId(Number(value));
+              }}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="스테이지를 선택해주세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {previousStages?.map((stage) => (
+                  <SelectItem key={stage.id} value={stage.id.toString()}>
+                    {stage.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="rounded-md border mt-4">
+              <Table className="table-fixed w-full">
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => {
+                        return (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext()
+                                )}
+                          </TableHead>
+                        );
+                      })}
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
-                      No results.
-                    </TableCell>
+                  ))}
+                </TableHeader>
+              </Table>
+              <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
+                <Table className="table-fixed w-full">
+                  <TableBody>
+                    {table.getRowModel().rows?.length ? (
+                      table.getRowModel().rows.map((row) => (
+                        <TableRow
+                          key={row.id}
+                          data-state={row.getIsSelected() && "selected"}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell key={cell.id}>
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={columns.length}
+                          className="min-h-56 text-center h-56"
+                        >
+                          {isFirstStage
+                            ? "No results."
+                            : "스테이지를 선택해주세요"}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex items-center justify-between p-3 text-sm bg-zinc-900">
+                <div className="flex items-center gap-2">
+                  <span className="text-zinc-400">참가팀 수</span>
+                  <span className="font-semibold">{place}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-zinc-400">선택</span>
+                  <span className="text-blue-500 font-semibold">
+                    {competitors.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-zinc-400">잔여</span>
+                  <span className="text-red-600 font-semibold">
+                    {place ? place - competitors.length : 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {isFirstStage && (
+          <div className="rounded-md border">
+            <Table className="table-fixed w-full">
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
-                )}
-              </TableBody>
+                ))}
+              </TableHeader>
             </Table>
+            <div className="max-h-[60vh] overflow-y-auto scrollbar-hide">
+              <Table className="table-fixed w-full">
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={columns.length}
+                        className="h-24 text-center"
+                      >
+                        No results.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex items-center justify-between p-3 text-sm bg-zinc-900">
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-400">참가팀 수</span>
+                <span className="font-semibold">{place}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-400">선택</span>
+                <span className="text-blue-500 font-semibold">
+                  {competitors.length}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-400">잔여</span>
+                <span className="text-red-600 font-semibold">
+                  {place ? place - competitors.length : 0}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center justify-between p-3 text-sm bg-zinc-900">
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-400">참가팀 수</span>
-              <span className="font-semibold">{place}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-400">선택</span>
-              <span className="text-blue-500 font-semibold">
-                {competitors.length}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-400">잔여</span>
-              <span className="text-red-600 font-semibold">
-                {place ? place - competitors.length : 0}
-              </span>
-            </div>
-          </div>
-        </div>
+        )}
         <DialogFooter className="w-full flex sm:justify-between">
           <DialogClose asChild>
-            <Button variant="outline">취소</Button>
+            <Button variant="outline" className="cursor-pointer">
+              취소
+            </Button>
           </DialogClose>
-          <Button type="button" onClick={handleAssignBracket}>
+          <Button
+            type="button"
+            onClick={handleAssignBracket}
+            className="cursor-pointer"
+          >
             다음
           </Button>
         </DialogFooter>

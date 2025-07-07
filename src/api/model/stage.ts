@@ -10,7 +10,7 @@ import type { Competition } from './competition';
 import type { GameType } from './gameType';
 
 export interface Stage {
-  bracket: Bracket;
+  brackets: Bracket[];
   competition: Competition;
   competitionId: number;
   createdAt: string;

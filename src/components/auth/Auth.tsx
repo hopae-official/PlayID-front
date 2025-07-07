@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getPlayIdToken } from "@/queries/token";
-import { toast } from "sonner";
 import { useClerk } from "@clerk/clerk-react";
 
 const Auth = () => {
@@ -17,7 +16,6 @@ const Auth = () => {
 
   useEffect(() => {
     if (isError) {
-      toast.error("로그인에 실패했습니다.");
       signOut();
       navigate("/sign-in");
     }

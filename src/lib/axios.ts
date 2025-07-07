@@ -1,4 +1,4 @@
-import Axios, { type AxiosRequestConfig, type AxiosResponse } from "axios";
+import Axios, { type AxiosRequestConfig } from "axios";
 import { merge } from "lodash";
 import { getToken } from "../utils/token";
 

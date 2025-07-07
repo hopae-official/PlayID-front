@@ -21,7 +21,6 @@ export interface MatchParticipant {
   matchSetParticipantStats: MatchSetParticipantStat[];
   roster: Roster;
   rosterId: number;
-  /** @nullable */
-  slotNumber: number | null;
+  slotNumber: number;
   updatedAt: string;
 }

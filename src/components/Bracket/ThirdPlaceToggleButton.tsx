@@ -1,10 +1,10 @@
 import { Panel } from "@xyflow/react";
-import type { Stage } from "@/pages/Bracket/BracketCreate";
+import type { CustomStage } from "@/pages/Bracket/BracketCreate";
 import { Switch } from "../ui/switch";
 import { Label } from "../ui/label";
 
 interface ThirdPlaceToggleButtonProps {
-  stage: Stage;
+  stage: CustomStage;
   onChange?: (thirdPlace: boolean) => void;
 }
 
@@ -18,7 +18,7 @@ const ThirdPlaceToggleButton = ({
         <Switch
           id="third-place"
           className="cursor-pointer"
-          checked={stage.isThirdPlace}
+          checked={stage.bracket?.hasThirdPlaceMatch}
           onCheckedChange={onChange}
         />
         <Label htmlFor="third-place">3-4위전</Label>

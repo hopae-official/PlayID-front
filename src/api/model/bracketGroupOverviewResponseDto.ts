@@ -6,11 +6,17 @@
  * OpenAPI spec version: 1.0
  */
 import type { BracketGroupOverviewMatchDto } from './bracketGroupOverviewMatchDto';
+import type { MatchSetParticipantStatsGroupDto } from './matchSetParticipantStatsGroupDto';
+import type { MatchSetResultsGroupDto } from './matchSetResultsGroupDto';
 import type { BracketGroupOverviewRoundDto } from './bracketGroupOverviewRoundDto';
 
 export interface BracketGroupOverviewResponseDto {
   /** 매치 목록 */
   matches: BracketGroupOverviewMatchDto[];
+  /** 참여자 통계 목록 */
+  matchSetParticipantStats: MatchSetParticipantStatsGroupDto[];
+  /** 세트 결과 목록 */
+  matchSetResults: MatchSetResultsGroupDto[];
   /** 라운드 목록 */
   rounds: BracketGroupOverviewRoundDto[];
 }
