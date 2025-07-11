@@ -14,14 +14,8 @@ import type {
   CustomStage,
   Group,
 } from "@/pages/Bracket/BracketCreate";
-import { useState, useEffect, useCallback, useMemo } from "react";
-import type {
-  ColumnDef,
-  ColumnFiltersState,
-  VisibilityState,
-  Row,
-  SortingState,
-} from "@tanstack/react-table";
+import { useState, useEffect, useMemo } from "react";
+import type { ColumnDef, Row, SortingState } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -62,11 +56,6 @@ interface AssignCompetitorDialogProps {
   onAssignBracket?: (competitors: Competitor[]) => void;
 }
 
-interface AssignStatus {
-  id: string;
-  isAssigned: boolean;
-}
-
 export type CustomRoster = {
   rosterId: string;
   name: string;
@@ -80,7 +69,7 @@ const getColumns = (
   place: number,
   isTeam: boolean,
   isFirstStage: boolean,
-  hasRusult: boolean,
+  hasResult: boolean,
   competitors: Competitor[],
   selectedRosterIds: string[],
   selectedPreviousStage: Stage | undefined,
@@ -99,7 +88,7 @@ const getColumns = (
             onCheckedChange={() => {
               if (table.getSelectedRowModel().rows.length === place) {
                 setRowSelection({});
-                setCompetitors([]); // 전체 해제
+                setCompetitors([]);
               } else {
                 const newRowSelection: Record<string, boolean> = {};
                 const selectedRows = table.getRowModel().rows.slice(0, place);
@@ -219,7 +208,7 @@ const getColumns = (
               isDisabled ? "이미 다른 그룹에 배정된 선수입니다" : undefined
             }
           >
-            {hasRusult ? `${row.getValue("ranking")}위` : "-"}
+            {hasResult ? `${row.getValue("ranking")}위` : "-"}
           </div>
         );
       },
@@ -240,18 +229,8 @@ const AssignCompetitorDialog = ({
   const [isOpen, setIsOpen] = useState(false);
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const selectedGame = useSelectedGameStore((state) => state.selectedGame);
-  const [assignData, setAssignData] = useState<AssignStatus[]>(
-    stage?.bracket?.groups && stage.bracket.groups.length > 0
-      ? stage.bracket.groups.map((group) => ({
-          id: group.id,
-          isAssigned: false,
-        }))
-      : [{ id: stage?.id ?? "", isAssigned: false }]
-  );
   const [selectedRosterIds, setSelectedRosterIds] = useState<string[]>([]);
   const [selectedPreviousStageId, setSelectedPreviousStageId] =
     useState<number>();
@@ -259,15 +238,20 @@ const AssignCompetitorDialog = ({
     selectedPreviousStageId ?? 0
   );
   const { data: selectedPreviousStageBracket } = getBracket(
-    selectedPreviousStage?.brackets[0]?.id ?? 0
+    selectedPreviousStage?.brackets?.[0]?.id ?? 0
   );
   const { data: stageAllMatchesParticipants } = getStageAllMatchesParticipants(
     Number(selectedGame?.id)
   );
 
+  const validPreviousStageBracket = selectedPreviousStage?.brackets?.[0]
+    ? selectedPreviousStageBracket
+    : undefined;
+
   const [rostersWithRanking, setRostersWithRanking] = useState<CustomRoster[]>(
     []
   );
+
   const previousStages = stages?.slice(
     0,
     stages?.findIndex((s) => s.id === Number(stage?.id))
@@ -275,19 +259,18 @@ const AssignCompetitorDialog = ({
   const isFirstStage =
     stages?.findIndex((s) => s.id === Number(stage?.id)) === 0;
 
-  const hasRusult = useMemo(() => {
-    if (!selectedPreviousStageBracket) return false;
-
-    if (selectedPreviousStageBracket.format === "SINGLE_ELIMINATION") {
-      return selectedPreviousStageBracket.groups.some((group) =>
+  const hasResult = useMemo(() => {
+    if (!validPreviousStageBracket) return false;
+    if (validPreviousStageBracket.format === "SINGLE_ELIMINATION") {
+      return validPreviousStageBracket.groups.some((group) =>
         group.rounds.some((round) =>
           round.matches.some((match) =>
             match.matchSetResults?.some((result) => result.winnerRosterId)
           )
         )
       );
-    } else if (selectedPreviousStageBracket.format === "FREE_FOR_ALL") {
-      return selectedPreviousStageBracket.groups.some((group) =>
+    } else if (validPreviousStageBracket.format === "FREE_FOR_ALL") {
+      return validPreviousStageBracket.groups.some((group) =>
         group.rounds.some((round) =>
           round.matches.some((match) =>
             match.matchSetResults?.some((result) =>
@@ -299,25 +282,122 @@ const AssignCompetitorDialog = ({
         )
       );
     }
-
     return false;
-  }, [selectedPreviousStageBracket]);
+  }, [validPreviousStageBracket]);
 
-  // selectedRosterIds 초기화
   useEffect(() => {
-    if (!isOpen) setSelectedRosterIds([]);
+    if (!validPreviousStageBracket) {
+      setRostersWithRanking([]);
+      return;
+    }
+    if (validPreviousStageBracket.format === "SINGLE_ELIMINATION") {
+      const allRosters = validPreviousStageBracket.groups.flatMap((group) => {
+        const rounds = group.rounds;
+        const participants = rounds[0].matches.flatMap(
+          (m) => m.matchParticipants
+        );
+        const rankingMap: Record<string, number> = {};
+        let currentRank = 1;
+        for (let i = rounds.length - 1; i >= 0; i--) {
+          const matches = rounds[i].matches;
+          if (i === rounds.length - 1) {
+            matches.forEach((match, matchIdx) =>
+              match.matchParticipants?.forEach((p) => {
+                rankingMap[p.rosterId] = p.isWinner
+                  ? matchIdx === 0
+                    ? 1
+                    : 3
+                  : matchIdx === 0
+                  ? 2
+                  : validPreviousStageBracket.formatOptions.hasThirdPlaceMatch
+                  ? 4
+                  : 3;
+              })
+            );
+            currentRank = matches.length > 1 ? 5 : 3;
+          } else {
+            const losers = matches.flatMap((m) =>
+              (m.matchParticipants ?? [])
+                .filter((p) => !p.isWinner)
+                .map((p) => String(p.rosterId))
+            );
+            losers.forEach((rosterId) => (rankingMap[rosterId] = currentRank));
+            currentRank += losers.length;
+          }
+        }
+        return participants
+          .map((roster) => ({
+            rosterId: String(roster.rosterId),
+            name:
+              roster.roster.team?.name ||
+              roster.roster.player?.organization ||
+              "",
+            gameId: roster.roster.player?.gameId,
+            ranking: rankingMap[String(roster.rosterId)],
+          }))
+          .sort((a, b) => (a.ranking ?? 999) - (b.ranking ?? 999))
+          .map((roster) => ({
+            ...roster,
+            ranking:
+              validPreviousStageBracket.groups.length > 1
+                ? `${group.name}조 ${roster.ranking}`
+                : `${roster.ranking}`,
+          }));
+      });
+      setRostersWithRanking(allRosters);
+    } else if (validPreviousStageBracket.format === "FREE_FOR_ALL") {
+      const pointMap: Record<string, number> = {};
+      validPreviousStageBracket.groups.forEach((group) =>
+        group.rounds.forEach((round) =>
+          round.matches.forEach((match) =>
+            match.matchSetResults?.forEach((result) =>
+              result.matchSetParticipantStats?.forEach((stat) => {
+                const rosterId = match.matchParticipants?.find(
+                  (p) => p.id === stat.matchParticipantId
+                )?.rosterId;
+                if (rosterId) {
+                  const point = Number(stat.statPayload?.point ?? 0);
+                  pointMap[rosterId] = (pointMap[rosterId] ?? 0) + point;
+                }
+              })
+            )
+          )
+        )
+      );
+      let lastPoint: number | null = null;
+      let lastRank = 0;
+      const rostersWithPoint = Object.entries(pointMap)
+        .map(([rosterId, point]) => {
+          const roster = (rosters ?? []).find((r) => r.rosterId === rosterId);
+          return {
+            rosterId,
+            name: roster?.name ?? "",
+            gameId: roster?.gameId,
+            point,
+          };
+        })
+        .sort((a, b) => b.point - a.point)
+        .map((roster, idx) => {
+          if (roster.point === lastPoint) {
+            return { ...roster, ranking: lastRank };
+          } else {
+            lastRank = idx + 1;
+            lastPoint = roster.point;
+            return { ...roster, ranking: lastRank };
+          }
+        })
+        .map((roster) => ({
+          ...roster,
+          ranking:
+            validPreviousStageBracket.groups.length > 1
+              ? `${validPreviousStageBracket.groups[0].name}조 ${roster.ranking}`
+              : `${roster.ranking}`,
+        }));
+      setRostersWithRanking(rostersWithPoint);
+    }
+  }, [validPreviousStageBracket, rosters]);
 
-    // if (stages?.findIndex((s) => s.id === Number(stage?.id)) !== 0) {
-    //   setCustomRosters(
-    //     rosters?.map((roster) => ({
-    //       ...roster,
-    //       ranking: stages?.findIndex((s) => s.id === Number(stage?.id)) + 1,
-    //     })) ?? []
-    //   );
-    // }
-  }, [isOpen]);
-
-  // previousStageRosters: 이전 스테이지 참가자 id 배열을 useMemo로 관리
+  // 이전 스테이지 참가자 id 배열
   const previousStageRosters = useMemo(() => {
     if (!stageAllMatchesParticipants) return [];
     return stageAllMatchesParticipants.map(
@@ -325,7 +405,7 @@ const AssignCompetitorDialog = ({
     );
   }, [stageAllMatchesParticipants]);
 
-  // filteredRosters: previousStageRosters에 포함되지 않은 로스터만 남김
+  // previousStageRosters에 포함되지 않은 로스터만 남김
   const filteredRosters = useMemo(() => {
     if (!rosters) return [];
     if (!previousStageRosters || previousStageRosters.length === 0)
@@ -335,27 +415,24 @@ const AssignCompetitorDialog = ({
     );
   }, [rosters, previousStageRosters]);
 
-  // setRowSelection useCallback으로 감싸 columns에 전달
-  const stableSetRowSelection = useCallback(setRowSelection, []);
-
-  // columns 생성 시 data source에 맞게 전달
+  // columns 생성
   const columns = useMemo(
     () =>
       getColumns(
-        stableSetRowSelection,
+        setRowSelection,
         place ?? 0,
         rosters?.some((roster) => roster.isTeam) ?? false,
         isFirstStage,
-        hasRusult,
+        hasResult,
         competitors ?? [],
         selectedRosterIds ?? [],
         selectedPreviousStage,
         setCompetitors
       ),
     [
-      stableSetRowSelection,
+      setRowSelection,
       place,
-      hasRusult,
+      hasResult,
       selectedPreviousStage,
       rostersWithRanking,
       filteredRosters,
@@ -366,46 +443,37 @@ const AssignCompetitorDialog = ({
     ]
   );
 
-  // table의 data도 조건부로 할당
+  // table data
   const table = useReactTable({
     data: selectedPreviousStage ? rostersWithRanking ?? [] : filteredRosters,
     columns,
     getRowId: (row) => row.rosterId,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     state: {
       sorting,
-      columnFilters,
-      columnVisibility,
       rowSelection,
     },
   });
 
-  // initializeDialogState에서 table.getRowModel().rows 대신 rosters 데이터 기반으로 selection 초기화
+  // 다이얼로그 상태 초기화
   const initializeDialogState = () => {
     let baseCompetitors: Competitor[] = [];
-
     if (stage?.bracket?.groups && stage.bracket.groups.length > 0) {
       baseCompetitors =
         stage.bracket.groups
           .find((g) => g.id === selectedGroupId)
           ?.matches.flatMap((m) => m.participants ?? [])
           .filter((c) => c.id && c.name) ?? [];
-
       const allSelectedCompetitors = stage.bracket.groups
         .filter((g) => g.id !== selectedGroupId)
         .flatMap((g) =>
           g.matches.flatMap((m) => m.participants ?? []).filter((c) => c.id)
         );
-      const allSelectedIds = new Set(
-        allSelectedCompetitors.map((c) => c.id && c.name)
-      );
-
+      const allSelectedIds = new Set(allSelectedCompetitors.map((c) => c.id));
       setSelectedRosterIds(
         rosters
           ?.map((roster) => roster.rosterId)
@@ -414,10 +482,7 @@ const AssignCompetitorDialog = ({
     } else {
       baseCompetitors = stage?.competitors ?? [];
     }
-
     setCompetitors(baseCompetitors);
-
-    // rosters 데이터 기반으로 selection 초기화
     const initialSelection: Record<string, boolean> = {};
     (rosters ?? []).forEach((roster) => {
       if (baseCompetitors.find((c) => c.id === roster.rosterId)) {
@@ -429,209 +494,32 @@ const AssignCompetitorDialog = ({
 
   useEffect(() => {
     if (isOpen) {
-      if (selectedPreviousStage) {
-        // 이전 스테이지 기반 competitors/rowSelection 복원 또는 별도 초기화
-        // 예: setCompetitors(stageCompetitorsMap[selectedPreviousStage.id] ?? []);
-        // 또는 rostersWithRanking 기반으로 초기화
-      } else {
-        initializeDialogState();
-      }
+      initializeDialogState();
     } else {
       setRowSelection({});
     }
   }, [isOpen, stage, selectedGroupId, selectedPreviousStage]);
 
-  useEffect(() => {
-    if (selectedPreviousStageBracket) {
-      if (selectedPreviousStageBracket.format === "SINGLE_ELIMINATION") {
-        selectedPreviousStageBracket.groups.forEach((group, index) => {
-          const rounds = group.rounds;
-
-          const selectedPreviousStageParticipants =
-            selectedPreviousStageBracket.groups[
-              index
-            ].rounds[0].matches.flatMap((match) => match.matchParticipants);
-
-          const rankingMap: Record<string, number> = {};
-          let currentRank = 1;
-
-          for (let i = rounds.length - 1; i >= 0; i--) {
-            const round = rounds[i];
-            const matches = round.matches;
-
-            if (i === rounds.length - 1) {
-              // 결승/3,4위전
-              matches.forEach((match, matchIdx) => {
-                match.matchParticipants?.forEach((participant) => {
-                  if (participant.isWinner) {
-                    rankingMap[participant.rosterId] = matchIdx === 0 ? 1 : 3;
-                  } else {
-                    rankingMap[participant.rosterId] =
-                      matchIdx === 0
-                        ? 2
-                        : selectedPreviousStageBracket.formatOptions
-                            .hasThirdPlaceMatch
-                        ? 4
-                        : 3;
-                  }
-                });
-              });
-              currentRank = matches.length > 1 ? 5 : 3;
-            } else {
-              // 하위 라운드(공동 순위)
-              const losers: string[] = [];
-              matches.forEach((match) => {
-                match.matchParticipants?.forEach((participant) => {
-                  if (!participant.isWinner) {
-                    losers.push(participant.rosterId.toString());
-                  }
-                });
-              });
-              losers.forEach((rosterId) => {
-                rankingMap[rosterId] = currentRank; // 공동 순위 부여
-              });
-              currentRank += losers.length; // 다음 공동 순위로 이동
-            }
-          }
-
-          const newRostersWithRanking = (
-            selectedPreviousStageParticipants ?? []
-          ).map((roster) => {
-            let rosterIdStr: string = "";
-            if (typeof roster.rosterId === "number") {
-              rosterIdStr = roster.rosterId.toString();
-            } else if (typeof roster.rosterId === "string") {
-              rosterIdStr = roster.rosterId;
-            }
-            return {
-              rosterId: rosterIdStr,
-              name: roster.roster.team
-                ? roster.roster.team.name
-                : roster.roster.player?.organization || "",
-              gameId: roster.roster.player?.gameId,
-              ranking: rankingMap[rosterIdStr] ?? undefined,
-            };
-          });
-
-          const sortedRosters = [...newRostersWithRanking].sort((a, b) => {
-            if (a.ranking === undefined) return 1;
-            if (b.ranking === undefined) return -1;
-            return a.ranking - b.ranking;
-          });
-
-          setRostersWithRanking(
-            sortedRosters.map((roster) => ({
-              ...roster,
-              ranking:
-                selectedPreviousStageBracket.groups.length > 1
-                  ? `${selectedPreviousStageBracket.groups[index].name}조 ${roster.ranking}`
-                  : `${roster.ranking}`,
-            }))
-          );
-        });
-      } else if (selectedPreviousStageBracket.format === "FREE_FOR_ALL") {
-        // 1. 참가자별 point 합산
-        const pointMap: Record<string, number> = {};
-
-        // 하... 이걸 프론트에서 이런식으로 보여주면 안될 것 같은데... 일단 시간 없으니 진행
-        selectedPreviousStageBracket.groups.forEach((group) => {
-          group.rounds.forEach((round) => {
-            round.matches.forEach((match) => {
-              match.matchSetResults?.forEach((result) => {
-                result.matchSetParticipantStats?.forEach((stat) => {
-                  const rosterId = match.matchParticipants?.find(
-                    (participant) => participant.id === stat.matchParticipantId
-                  )?.rosterId;
-                  const point = stat.statPayload?.point ?? 0;
-                  if (rosterId) {
-                    pointMap[rosterId] =
-                      Number(pointMap[rosterId] ?? 0) + Number(point);
-                  }
-                });
-              });
-            });
-          });
-        });
-
-        // 2. 참가자 정보와 합산된 point를 매핑
-        const newRostersWithPoint = Object.entries(pointMap).map(
-          ([rosterId, point]) => {
-            const roster = (rosters ?? []).find((r) => r.rosterId === rosterId);
-            return {
-              rosterId,
-              name: roster?.name ?? "",
-              gameId: roster?.gameId,
-              point,
-              ranking: undefined,
-            };
-          }
-        );
-
-        //3. point 기준 내림차순
-        const sortedRosters = [...newRostersWithPoint].sort(
-          (a, b) => b.point - a.point
-        );
-
-        // 공동 순위 부여
-        let lastPoint: number | null = null;
-        let lastRank = 0;
-        const newRostersWithRanking = sortedRosters.map((roster, index) => {
-          if (roster.point === lastPoint) {
-            return {
-              ...roster,
-              ranking: lastRank,
-            };
-          } else {
-            lastRank = index + 1;
-            lastPoint = roster.point;
-            return {
-              ...roster,
-              ranking: lastRank,
-            };
-          }
-        });
-
-        setRostersWithRanking(
-          newRostersWithRanking.map((roster) => ({
-            ...roster,
-            ranking:
-              selectedPreviousStageBracket.groups.length > 1
-                ? `${selectedPreviousStageBracket.groups[0].name}조 ${roster.ranking}`
-                : `${roster.ranking}`,
-          }))
-        );
-      }
-    }
-  }, [selectedPreviousStageBracket, rosters]);
-
-  const isFinishAssignCompetitors = (() => {
+  const isFinishAssignCompetitors = useMemo(() => {
     if (stage?.bracket?.groups && stage.bracket.groups.length > 0) {
-      return !!assignData.find((data) => data.id === selectedGroupId)
-        ?.isAssigned;
+      const group = stage.bracket.groups.find((g) => g.id === selectedGroupId);
+      return group?.matches.some((m) => (m.participants ?? []).length > 0);
     }
-    return assignData.length > 0 && !!assignData[0].isAssigned;
-  })();
+    return (stage?.competitors ?? []).length > 0;
+  }, [stage, selectedGroupId]);
 
-  const handleAssignBracket = useCallback(() => {
+  const handleAssignBracket = () => {
     if ((place ?? 0) === 0 || competitors.length < (place ?? 0)) {
       toast.error("참가팀 수에 맞게 참가팀을 선택해주세요");
       return;
     }
-    setAssignData((prev) => {
-      if (stage?.bracket?.groups && stage.bracket.groups.length > 0) {
-        return prev.map((data) =>
-          data.id === selectedGroupId ? { ...data, isAssigned: true } : data
-        );
-      }
-      return prev.map((data) => ({ ...data, isAssigned: true }));
-    });
     onAssignBracket?.(competitors);
+    setSelectedPreviousStageId(undefined);
     setIsOpen(false);
-  }, [place, competitors, onAssignBracket, stage, selectedGroupId]);
+  };
 
   const handleCloseDialog = (open: boolean) => {
     setIsOpen(open);
-
     if (!open) {
       setTimeout(() => {
         setRowSelection({});
