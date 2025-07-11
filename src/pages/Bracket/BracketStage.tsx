@@ -43,7 +43,6 @@ import {
 } from "@/components/ui/dialog";
 import { useSelectedStageStore } from "@/stores/stage";
 import { useUpdateEffect } from "react-use";
-import { Progress } from "@/components/ui/progress";
 
 interface BracketStageProps {
   game: GameType;
@@ -66,10 +65,12 @@ const BracketStage = ({
   const { data: stage, isError: isStageError } = getStage(
     Number(selectedStage ? selectedStage.id : stages[0].id)
   );
-  const { data: bracketQuery, isError: isBracketError } = getBracket(
-    Number(stage?.brackets?.[0]?.id)
-  );
-  const bracket = isBracketError ? null : bracketQuery;
+  const {
+    data: bracket,
+    isError: isBracketError,
+    isSuccess: isBracketSuccess,
+  } = getBracket(Number(stage?.brackets?.[0]?.id));
+
   const [selectedGroupId, setSelectedGroupId] = useState(
     bracket?.groups?.[0]?.id || 0
   );
@@ -88,6 +89,8 @@ const BracketStage = ({
 
   const [originalStages, setOriginalStages] = useState<Stage[]>(stages);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
   const { toggleSidebar } = useSidebar();
 
   useEffect(() => {
@@ -114,6 +117,14 @@ const BracketStage = ({
       bracket?.groups?.[0]?.id.toString() || "0"
     );
   }, [bracket]);
+
+  useEffect(() => {
+    setIsLoading(true);
+
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 100);
+  }, [isBracketSuccess]);
 
   useEffect(() => {
     if (isStageError) {
@@ -375,14 +386,6 @@ const BracketStage = ({
         )
       ));
 
-  // 예시: bracket, bracketGroups, rosters의 로딩 상태를 모두 체크
-  const isLoading =
-    !selectedStage ||
-    !stages.length ||
-    (bracket === undefined && !isBracketError) ||
-    (bracketGroups === undefined && !isBracketGroupsError) ||
-    (rosters === undefined && !isRostersError);
-
   return (
     <div className="flex h-full flex-col gap-4">
       <Tabs
@@ -438,39 +441,46 @@ const BracketStage = ({
           value={selectedStage?.id.toString() || stages[0].id.toString()}
           className="flex h-full flex-col items-center rounded-b-md rounded-tr-md"
         >
-          {isLoading ? (
+          {isLoading && (
             <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md" />
-          ) : bracket ? (
-            <BracketShowingBoard
-              stage={convertToReactFlowStage!}
-              selectedGroupId={selectedGroupId.toString()}
-              boardType={
-                location.pathname.includes("result")
-                  ? BOARD_TYPE.RESULT
-                  : BOARD_TYPE.SHOW
-              }
-              onChangeGroupTab={handleChangeGroupTab}
-              onClickControls={handleClickControls}
-              onDeleteStage={handleDeleteStage}
-            />
-          ) : (
-            <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md">
-              <div className="text-2xl font-semibold">
-                대진표를 생성하시겠어요?
-              </div>
-              <div className="text-sm text-muted-foreground mt-2">
-                마지막 로스터 확정: {game.isRosterConfirmed ? "확정" : "미확정"}
-              </div>
-              <Button
-                className="mt-6 cursor-pointer"
-                size="lg"
-                onClick={() => {
-                  navigate(`/stage/${selectedStage?.id}/bracket/create`);
-                }}
-              >
-                대진표 생성
-              </Button>
-            </div>
+          )}
+
+          {!isLoading && (
+            <>
+              {bracket ? (
+                <BracketShowingBoard
+                  stage={convertToReactFlowStage!}
+                  selectedGroupId={selectedGroupId.toString()}
+                  boardType={
+                    location.pathname.includes("result")
+                      ? BOARD_TYPE.RESULT
+                      : BOARD_TYPE.SHOW
+                  }
+                  onChangeGroupTab={handleChangeGroupTab}
+                  onClickControls={handleClickControls}
+                  onDeleteStage={handleDeleteStage}
+                />
+              ) : (
+                <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md">
+                  <div className="text-2xl font-semibold">
+                    대진표를 생성하시겠어요?
+                  </div>
+                  <div className="text-sm text-muted-foreground mt-2">
+                    마지막 로스터 확정:{" "}
+                    {game.isRosterConfirmed ? "확정" : "미확정"}
+                  </div>
+                  <Button
+                    className="mt-6 cursor-pointer"
+                    size="lg"
+                    onClick={() => {
+                      navigate(`/stage/${selectedStage?.id}/bracket/create`);
+                    }}
+                  >
+                    대진표 생성
+                  </Button>
+                </div>
+              )}
+            </>
           )}
           {!location.pathname.includes("result") &&
             !isExpand &&
