@@ -22,8 +22,7 @@ import CustomControls, {
 } from "@/components/Bracket/CustomControls";
 import { useExpandStore } from "@/stores/expand";
 import MatchResultDrawer from "@/components/Bracket/MatchResultDrawer";
-import { useGetReferees } from "@/queries/refree";
-import type { InitializeBracketStructureDto, Referee } from "@/api/model";
+import type { InitializeBracketStructureDto } from "@/api/model";
 import MatchResultDetailDrawer from "@/components/Bracket/MatchResultDetailDrawer";
 
 export type CustomMatch = {
@@ -1185,7 +1184,6 @@ const MatchNode = (props: any) => {
     boardType: BoardType;
     stage: CustomStage;
     onSubmit: (data: { id: string; setting: MatchSetting }) => void;
-    refereeData: Referee[];
   } = props.data;
   const [isDialogOpen] = useState(false);
   const [openDetailResultDialog, setOpenDetailResultDialog] = useState(false);
@@ -1629,7 +1627,6 @@ const BracketShowingBoard = ({
   onClickControls,
 }: BracketBoardProps) => {
   const { isExpand } = useExpandStore();
-  const { data: refereeData } = useGetReferees();
 
   // groups는 항상 stage에서만 파생
   const groups = stage.bracket?.groups || [];
@@ -1687,7 +1684,6 @@ const BracketShowingBoard = ({
       boardType,
       stage,
       onSubmit: handleMatchSubmit,
-      refereeData: refereeData,
     },
   }));
 
@@ -1705,7 +1701,11 @@ const BracketShowingBoard = ({
   return (
     <div
       className={`w-full bg-zinc-900 rounded-b-md rounded-tr-md ${
-        isExpand ? "h-[calc(100vh-48px)]" : "h-[calc(100vh-206px)]"
+        isExpand
+          ? "h-[calc(100vh-48px)]"
+          : boardType === BOARD_TYPE.SHOW
+          ? "h-[calc(100vh-262px)]"
+          : "h-[calc(100vh-206px)]"
       }`}
     >
       <div className="w-full h-full flex justify-between items-center">

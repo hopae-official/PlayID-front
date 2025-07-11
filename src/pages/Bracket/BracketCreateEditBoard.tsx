@@ -48,12 +48,12 @@ import CustomControls, {
   type CustomControlMenuType,
 } from "@/components/Bracket/CustomControls";
 import { useExpandStore } from "@/stores/expand";
-import { useGetReferees } from "@/queries/refree";
+import { getRefereesByCompetitionId } from "@/queries/refree";
 import type {
   BracketStructureMatchDto,
   BracketStructureRoundDto,
   InitializeBracketStructureDto,
-  Referee,
+  RefereeCompetition,
   UpdateMatchDtoBestOf,
   UpdateMatchParticipantsDto,
   UpdateRoundDtoBestOf,
@@ -62,6 +62,7 @@ import dayjs from "dayjs";
 import { patchMatchParticipantsBulk, updateMatch } from "@/queries/match";
 import { updateRound } from "@/queries/round";
 import { useNavigate } from "react-router-dom";
+import { useSelectedCompetitionStore } from "@/stores/competition";
 
 export type CustomMatch = {
   id: string;
@@ -1153,7 +1154,7 @@ const MatchNode = (props: any) => {
     boardType: BoardType;
     stage: CustomStage;
     onSubmit: (data: { id: string; setting: MatchSetting }) => void;
-    refereeData: Referee[];
+    refereeData: RefereeCompetition[];
   } = props.data;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
@@ -1257,6 +1258,8 @@ const MatchNode = (props: any) => {
     onSubmit({ id: match.id || "", setting: data });
     setIsDialogOpen(false);
   };
+
+  console.log("1123refereeData", refereeData);
 
   const dialogContent = (
     <DialogContent className="sm:max-w-[425px]" showCloseButton={false}>
@@ -1374,8 +1377,11 @@ const MatchNode = (props: any) => {
               {refereeData &&
                 refereeData.length > 0 &&
                 refereeData.map((referee) => (
-                  <SelectItem key={referee.id} value={referee.id.toString()}>
-                    {referee.firstName} {referee.lastName}
+                  <SelectItem
+                    key={referee.referee.id}
+                    value={referee.referee.id.toString()}
+                  >
+                    {referee.referee.firstName} {referee.referee.lastName}
                   </SelectItem>
                 ))}
             </SelectContent>
@@ -1390,13 +1396,15 @@ const MatchNode = (props: any) => {
                   <span>
                     {
                       refereeData?.find(
-                        (r: Referee) => r.id.toString() === referee
-                      )?.firstName
+                        (r: RefereeCompetition) =>
+                          r.referee.id.toString() === referee
+                      )?.referee.firstName
                     }
                     {
                       refereeData?.find(
-                        (r: Referee) => r.id.toString() === referee
-                      )?.lastName
+                        (r: RefereeCompetition) =>
+                          r.referee.id.toString() === referee
+                      )?.referee.lastName
                     }
                   </span>
                   <XIcon
@@ -1737,6 +1745,7 @@ const BracketCreateEditBoard = ({
 }: BracketBoardProps) => {
   const navigate = useNavigate();
   const { isExpand } = useExpandStore();
+  const { selectedCompetition } = useSelectedCompetitionStore();
   const [groups, setGroups] = useState<Group[]>(
     stage.bracket?.groups?.length && stage.bracket?.groups?.length > 1
       ? stage.bracket?.groups || []
@@ -1749,7 +1758,9 @@ const BracketCreateEditBoard = ({
           },
         ]
   );
-  const { data: refereeData } = useGetReferees();
+  const { data: refereeData } = getRefereesByCompetitionId(
+    Number(selectedCompetition?.id)
+  );
   const { mutateAsync: updateMatchMutate } = updateMatch();
   const { mutateAsync: updateRoundMutate } = updateRound();
   const {
@@ -1790,6 +1801,8 @@ const BracketCreateEditBoard = ({
     dispatch?.({ type: "SET_GROUPS", payload: newGroups });
     onChangeGroupTab?.(newGroups?.[0]?.id || "");
   }, []);
+
+  console.log("refereeData", refereeData);
 
   useEffect(() => {
     setGroups(stage.bracket?.groups || []);

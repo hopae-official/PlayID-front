@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import type { GameType, Stage } from "@/api/model";
 import { createStage, deleteStage, getStages } from "@/queries/stage";
 import { useSelectedGameStore } from "@/stores/game";
+import { useSelectedCompetitionStore } from "@/stores/competition";
 
 export type Sheet = {
   id: string;
@@ -31,6 +32,7 @@ export type Game = {
 const Bracket = () => {
   const { isExpand } = useExpandStore();
   const { selectedGame, setSelectedGame } = useSelectedGameStore();
+  const { setSelectedCompetition } = useSelectedCompetitionStore();
   const { data: competitions = [], isError } = getCompetitionsMy();
   const { data: stageDatas } = getStages(
     competitions[0]?.id || 0,
@@ -48,6 +50,10 @@ const Bracket = () => {
   }, [isError]);
 
   useEffect(() => {
+    if (competitions && competitions[0]) {
+      setSelectedCompetition(competitions[0]);
+    }
+
     if (selectedGame) return;
 
     if (competitions && competitions[0] && competitions[0].gameTypes[0]) {
