@@ -219,9 +219,7 @@ const getColumns = (
               isDisabled ? "이미 다른 그룹에 배정된 선수입니다" : undefined
             }
           >
-            {hasRusult && (row.getValue("ranking") as number) < 5
-              ? `${row.getValue("ranking")}위`
-              : "-"}
+            {hasRusult ? `${row.getValue("ranking")}위` : "-"}
           </div>
         );
       },

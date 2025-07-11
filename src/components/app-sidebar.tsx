@@ -76,6 +76,7 @@ const data = {
     //   ],
     // },
     {
+      id: "bracket-management",
       title: "경기 관리",
       url: "#",
       icon: Gamepad2,
@@ -98,6 +99,7 @@ const data = {
       ],
     },
     {
+      id: "result-management",
       title: "결과 관리",
       url: "#",
       icon: Trophy,
