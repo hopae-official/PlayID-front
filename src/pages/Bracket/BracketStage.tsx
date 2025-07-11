@@ -66,10 +66,12 @@ const BracketStage = ({
     Number(selectedStage ? selectedStage.id : stages[0].id)
   );
   const {
-    data: bracket,
+    data: bracketData,
     isError: isBracketError,
     isSuccess: isBracketSuccess,
   } = getBracket(Number(stage?.brackets?.[0]?.id));
+
+  const bracket = isBracketSuccess ? bracketData : null;
 
   const [selectedGroupId, setSelectedGroupId] = useState(
     bracket?.groups?.[0]?.id || 0
