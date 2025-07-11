@@ -1229,6 +1229,7 @@ const MatchNode = (props: any) => {
       const times = Array.from(
         new Set(roundMatches.map((m) => m.scheduledTime || ""))
       );
+
       if (times.length > 1) {
         return `${firstDate.toLocaleDateString()} (여러 시간)`;
       }
@@ -1258,8 +1259,6 @@ const MatchNode = (props: any) => {
     onSubmit({ id: match.id || "", setting: data });
     setIsDialogOpen(false);
   };
-
-  console.log("1123refereeData", refereeData);
 
   const dialogContent = (
     <DialogContent className="sm:max-w-[425px]" showCloseButton={false}>
@@ -1802,8 +1801,6 @@ const BracketCreateEditBoard = ({
     onChangeGroupTab?.(newGroups?.[0]?.id || "");
   }, []);
 
-  console.log("refereeData", refereeData);
-
   useEffect(() => {
     setGroups(stage.bracket?.groups || []);
   }, [stage.bracket?.groups]);
@@ -1960,9 +1957,11 @@ const BracketCreateEditBoard = ({
             )
             .map((match) => ({
               matchId: Number(match.id.split("-")[0]),
-              participants: (match.participants ?? []).map((participant) => ({
-                rosterId: Number(participant.id) || 0,
-              })),
+              participants: (match.participants ?? [])
+                .filter((participant) => participant.id !== "")
+                .map((participant) => ({
+                  rosterId: Number(participant.id),
+                })),
             }))
         );
 
