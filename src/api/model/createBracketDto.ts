@@ -16,5 +16,5 @@ export interface CreateBracketDto {
   /** 스테이지 ID */
   stageId: number;
   /** 스테이지 이름 */
-  stageName: string;
+  stageName?: string;
 }

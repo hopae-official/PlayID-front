@@ -5,10 +5,9 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
+import type { Roster } from './roster';
 
-export interface SetResultSaveDto {
-  /** 세트 결과 ID */
-  id: number;
-  /** 승자 로스터 ID */
-  winnerRosterId?: number;
-}
+/**
+ * @nullable
+ */
+export type RosterControllerSoftRemove200Data = Roster | null;

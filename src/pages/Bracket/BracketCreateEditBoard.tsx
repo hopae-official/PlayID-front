@@ -44,7 +44,6 @@ import type { Action, Group, CustomStage } from "./BracketCreate";
 import GroupToggleButton from "@/components/Bracket/GroupToggleButton";
 import { groupBy } from "lodash";
 import ThirdPlaceToggleButton from "@/components/Bracket/ThirdPlaceToggleButton";
-import { useStageStore } from "@/stores/stage";
 import CustomControls, {
   type CustomControlMenuType,
 } from "@/components/Bracket/CustomControls";
@@ -56,10 +55,11 @@ import type {
   InitializeBracketStructureDto,
   Referee,
   UpdateMatchDtoBestOf,
+  UpdateMatchParticipantsDto,
   UpdateRoundDtoBestOf,
 } from "@/api/model";
 import dayjs from "dayjs";
-import { updateMatch } from "@/queries/match";
+import { patchMatchParticipantsBulk, updateMatch } from "@/queries/match";
 import { updateRound } from "@/queries/round";
 import { useNavigate } from "react-router-dom";
 
@@ -1583,38 +1583,28 @@ const MatchNode = (props: any) => {
 
       {stage.bracket?.format === "FREE_FOR_ALL" && (
         <div className="space-y-1">
-          {(() => {
-            const isSetResult =
-              match.result?.setResult?.length &&
-              match.result?.setResult?.length > 2;
-            if (isSetResult && match.result?.setResult) {
-              // setResult 타입: { id?: string; name?: string; point?: number; ... }
-              return match.result.setResult.map(
+          {match.result &&
+          match.result.setResult &&
+          match.result.setResult.length > 2
+            ? match.result.setResult.map(
                 (
                   participant: { id?: string; name?: string; point?: number },
                   idx: number
-                ) => {
-                  const point = participant.point ?? "";
-                  return (
-                    <div
-                      key={participant.id ?? idx}
-                      className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
-                    >
-                      <span className="font-medium">
-                        {participant.name || (
-                          <span className="opacity-50"></span>
-                        )}
-                      </span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm">{point}</span>
-                      </div>
+                ) => (
+                  <div
+                    key={participant.id ?? idx}
+                    className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
+                  >
+                    <span className="font-medium">
+                      {participant.name || <span className="opacity-50"></span>}
+                    </span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm">{participant.point ?? ""}</span>
                     </div>
-                  );
-                }
-              );
-            } else {
-              // participants 타입: { id: string; name: string }
-              return match.participants?.map(
+                  </div>
+                )
+              )
+            : (match.participants ?? []).map(
                 (participant: { id: string; name: string }, idx: number) => {
                   const point =
                     match.result?.setResult?.find?.(
@@ -1622,8 +1612,10 @@ const MatchNode = (props: any) => {
                     )?.point ?? "";
                   return (
                     <div
-                      key={participant.id ?? idx}
-                      className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
+                      key={idx}
+                      className={`h-10 flex items-center justify-between p-2 rounded ${
+                        participant.name ? "bg-zinc-950" : "bg-zinc-900"
+                      }`}
                     >
                       <span className="font-medium">
                         {participant.name || (
@@ -1636,9 +1628,7 @@ const MatchNode = (props: any) => {
                     </div>
                   );
                 }
-              );
-            }
-          })()}
+              )}
         </div>
       )}
 
@@ -1736,17 +1726,7 @@ const updateMatches = (
 
 // 6. 메인 컴포넌트
 const BracketCreateEditBoard = ({
-  stage = {
-    id: "",
-    name: "",
-    competitors: [],
-    bracket: {
-      id: undefined,
-      format: "SINGLE_ELIMINATION",
-      hasThirdPlaceMatch: false,
-      groups: [],
-    },
-  },
+  stage,
   selectedGroupId,
   dispatch,
   onChangeGroupTab,
@@ -1757,7 +1737,6 @@ const BracketCreateEditBoard = ({
 }: BracketBoardProps) => {
   const navigate = useNavigate();
   const { isExpand } = useExpandStore();
-  const { setGlobalStage } = useStageStore();
   const [groups, setGroups] = useState<Group[]>(
     stage.bracket?.groups?.length && stage.bracket?.groups?.length > 1
       ? stage.bracket?.groups || []
@@ -1771,8 +1750,17 @@ const BracketCreateEditBoard = ({
         ]
   );
   const { data: refereeData } = useGetReferees();
+  const { mutateAsync: updateMatchMutate } = updateMatch();
+  const { mutateAsync: updateRoundMutate } = updateRound();
+  const {
+    mutateAsync: updateMatchParticipantsBulkMutate,
+    isSuccess: isUpdateMatchParticipantsBulkSuccess,
+    isError: isUpdateMatchParticipantsBulkError,
+  } = patchMatchParticipantsBulk();
 
   useEffect(() => {
+    if (isFinishUpdate === false) return;
+
     const normalizedGroups = [
       {
         id: stage.bracket?.groups?.[0]?.id || "default",
@@ -1807,24 +1795,6 @@ const BracketCreateEditBoard = ({
     setGroups(stage.bracket?.groups || []);
   }, [stage.bracket?.groups]);
 
-  const createThirdPlaceMatch = (group: Group) => {
-    // 마지막 라운드 번호를 구함
-    const lastRound = Math.max(
-      ...group.matches.map((m: CustomMatch) => m.round),
-      1
-    );
-    return {
-      id: uuidv4(),
-      round: lastRound,
-      name: "3,4위전",
-      participants: [
-        { id: "", name: "" },
-        { id: "", name: "" },
-      ],
-      isThirdPlace: true,
-    };
-  };
-
   useEffect(() => {
     if (
       stage.bracket?.format !== "SINGLE_ELIMINATION" ||
@@ -1844,12 +1814,40 @@ const BracketCreateEditBoard = ({
     setGroups(newGroups);
   }, [stage.bracket?.hasThirdPlaceMatch]);
 
-  const { mutateAsync: updateMatchMutate } = updateMatch();
-  const { mutateAsync: updateRoundMutate } = updateRound();
+  useEffect(() => {
+    if (isUpdateMatchParticipantsBulkSuccess) {
+      toast.success("대진표가 수정되었습니다.");
+      navigate("/bracket");
+    }
+  }, [isUpdateMatchParticipantsBulkSuccess]);
+
+  useEffect(() => {
+    if (isUpdateMatchParticipantsBulkError) {
+      toast.error("대진표 수정에 실패했습니다.");
+    }
+  }, [isUpdateMatchParticipantsBulkError]);
+
+  const createThirdPlaceMatch = (group: Group) => {
+    // 마지막 라운드 번호를 구함
+    const lastRound = Math.max(
+      ...group.matches.map((m: CustomMatch) => m.round),
+      1
+    );
+    return {
+      id: uuidv4(),
+      round: lastRound,
+      name: "3,4위전",
+      participants: [
+        { id: "", name: "" },
+        { id: "", name: "" },
+      ],
+      isThirdPlace: true,
+    };
+  };
 
   const handleMatchSubmit = useCallback(
     (data: { id: string; setting: MatchSetting }) => {
-      if (!!isFinishUpdate) {
+      if (isFinishUpdate === false) {
         if (data.setting.isSettingNode) {
           updateRoundMutate({
             roundId: Number(data.id.split("-")[0]),
@@ -1865,6 +1863,30 @@ const BracketCreateEditBoard = ({
               venue: data.setting.venue,
             },
           });
+
+          const matches = groups
+            .flatMap((group) => group.matches)
+            .filter(
+              (match) =>
+                !match.isSettingNode && match.round === data.setting.round
+            );
+
+          matches.forEach((match) => {
+            updateMatchMutate({
+              matchId: Number(match.id.split("-")[0]),
+              updateMatchDto: {
+                bestOf: data.setting.bestOf,
+                refereeIds: data.setting.referee.map((referee) =>
+                  Number(referee)
+                ),
+                scheduledDate: dayjs(data.setting.scheduledDate).format(
+                  "YYYY-MM-DD"
+                ),
+                scheduledTime: data.setting.scheduledTime,
+                venue: data.setting.venue,
+              },
+            });
+          });
         } else {
           updateMatchMutate({
             matchId: Number(data.id.split("-")[0]),
@@ -1876,7 +1898,7 @@ const BracketCreateEditBoard = ({
               scheduledDate: dayjs(data.setting.scheduledDate).format(
                 "YYYY-MM-DD"
               ),
-              scheduledTime: data.setting.scheduledTime,
+              scheduledTime: data.setting.scheduledTime || "",
               venue: data.setting.venue,
             },
           });
@@ -1894,13 +1916,13 @@ const BracketCreateEditBoard = ({
 
       dispatch?.({ type: "SET_GROUPS", payload: updatedGroups });
 
-      // setGroups((prevGroups: Group[]) =>
-      //   prevGroups.map((group) =>
-      //     group.id === selectedGroupId
-      //       ? { ...group, matches: updateMatches(group.matches, data) }
-      //       : group
-      //   )
-      // );
+      setGroups((prevGroups: Group[]) =>
+        prevGroups.map((group) =>
+          group.id === selectedGroupId
+            ? { ...group, matches: updateMatches(group.matches, data) }
+            : group
+        )
+      );
 
       toast.success("경기 정보가 저장되었습니다.");
     },
@@ -1912,17 +1934,26 @@ const BracketCreateEditBoard = ({
   };
 
   const handleSaveBracket = async () => {
-    setGlobalStage({
-      ...stage,
-      bracket: {
-        ...stage.bracket,
-        groups,
-      },
-    });
-
     if (isFinishUpdate === false) {
-      navigate("/bracket");
-      toast.success("대진표가 수정되었습니다.");
+      const updateParticipantsDto: UpdateMatchParticipantsDto[] =
+        groups.flatMap((group) =>
+          group.matches
+            .filter(
+              (match) =>
+                !match.isSettingNode &&
+                (stage.bracket?.format === "SINGLE_ELIMINATION"
+                  ? match.round === 1
+                  : true)
+            )
+            .map((match) => ({
+              matchId: Number(match.id.split("-")[0]),
+              participants: (match.participants ?? []).map((participant) => ({
+                rosterId: Number(participant.id) || 0,
+              })),
+            }))
+        );
+
+      updateMatchParticipantsBulkMutate(updateParticipantsDto);
       return;
     }
 
@@ -1967,6 +1998,7 @@ const BracketCreateEditBoard = ({
               : match.prevMatchIds && match.prevMatchIds.length > 0
               ? match.prevMatchIds.map((id) => id || "")
               : [],
+            participantsCount: match.participants?.length || 0,
             refereeIds: match.referee?.map((referee) => Number(referee)) || [],
             scheduledDate: dayjs(match.scheduledDate).format("YYYY-MM-DD"),
             scheduledTime: match.scheduledTime || "",

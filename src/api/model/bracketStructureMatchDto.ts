@@ -16,6 +16,8 @@ export interface BracketStructureMatchDto {
   name?: string;
   /** 참가자 목록 */
   participants: BracketStructureParticipantDto[];
+  /** 참가자 수 */
+  participantsCount?: number;
   /** 이전 라운드 매치들의 임시 ID (진출 연결용) */
   prevTempMatchIds: string[];
   /** 배정 심판 ID 목록 */

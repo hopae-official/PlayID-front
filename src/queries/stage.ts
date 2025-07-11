@@ -5,6 +5,7 @@ import {
   stageControllerGetStages,
 } from "@/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const getStages = (competitionId: number, gameTypeId: number) => {
   return useQuery({
@@ -66,6 +67,10 @@ export const deleteStage = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["getStages"] });
+      toast.success("스테이지가 삭제되었습니다.");
+    },
+    onError: () => {
+      toast.error("스테이지 삭제에 실패했습니다.");
     },
   });
 };

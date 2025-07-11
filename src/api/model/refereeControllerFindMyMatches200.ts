@@ -5,10 +5,8 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
+import type { Match } from './match';
 
-export interface SetResultSaveDto {
-  /** 세트 결과 ID */
-  id: number;
-  /** 승자 로스터 ID */
-  winnerRosterId?: number;
-}
+export type RefereeControllerFindMyMatches200 = {
+  data?: Match[];
+};

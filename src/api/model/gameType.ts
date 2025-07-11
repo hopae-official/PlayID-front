@@ -26,4 +26,9 @@ export interface GameType {
   numberOfTeams?: number;
   /** 팀당 플레이어 수 */
   playersPerTeam?: number;
+  /**
+   * workspace id
+   * @nullable
+   */
+  workspaceId: string | null;
 }

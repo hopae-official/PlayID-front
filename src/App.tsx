@@ -29,7 +29,10 @@ const App = () => {
               path="/stage/:id/bracket/create"
               element={<BracketCreate />}
             />
-            <Route path="/bracket/edit/:id" element={<BracketEdit />} />
+            <Route
+              path="/stage/:stageId/bracket/:bracketId/edit"
+              element={<BracketEdit />}
+            />
             <Route path="/auth" element={<Auth />} />
             <Route path="/sign-in/*" element={<CustomSignIn />} />
             <Route path="/sign-up" element={<CustomSignUp />} />

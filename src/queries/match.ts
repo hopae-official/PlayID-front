@@ -1,10 +1,12 @@
 import {
+  matchControllerGetMatchParticipantsByQuery,
   matchControllerGetSetParticipantStats,
   matchControllerGetSetResults,
   matchControllerSaveSetParticipantStats,
   matchControllerSaveSetResults,
   matchControllerSetMatchWinnerAndProgression,
   matchControllerUpdateMatch,
+  matchControllerUpdateMatchParticipants,
 } from "@/api";
 import type {
   MatchControllerUploadSetResultScreenshot200,
@@ -12,9 +14,22 @@ import type {
   SaveSetResultsDto,
   SetMatchWinnerAndProgressionDto,
   UpdateMatchDto,
+  UpdateMatchParticipantsDto,
 } from "@/api/model";
 import { customInstance } from "@/lib/axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+export const getStageAllMatchesParticipants = (gameId: number) => {
+  return useQuery({
+    queryKey: ["stage-all-matches-participants", gameId],
+    queryFn: async () => {
+      const response = await matchControllerGetMatchParticipantsByQuery({
+        gameTypeId: gameId,
+      });
+      return response.data;
+    },
+  });
+};
 
 export const getSetMatchesResults = (matchId: number, enabled: boolean) => {
   return useQuery({
@@ -24,6 +39,14 @@ export const getSetMatchesResults = (matchId: number, enabled: boolean) => {
       return response.data;
     },
     enabled,
+  });
+};
+
+export const patchMatchParticipantsBulk = () => {
+  return useMutation({
+    mutationFn: async (updateParticipantsDto: UpdateMatchParticipantsDto[]) => {
+      await matchControllerUpdateMatchParticipants(updateParticipantsDto);
+    },
   });
 };
 

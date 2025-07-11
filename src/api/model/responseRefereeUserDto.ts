@@ -5,30 +5,18 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
-import type { Referee } from './referee';
 
-export interface User {
-  /** Temporary */
-  address?: string;
+export interface ResponseRefereeUserDto {
   createdAt: string;
   dateOfBirth: string;
-  deletedAt?: string;
   email: string;
   gender: string;
   id: number;
   isForeigner: boolean;
-  /** Temporary */
-  lolMaxTier?: string;
   name: string;
-  needCheck?: boolean;
   phoneNumber: string;
-  pushToken?: string;
-  referee?: Referee;
   role: string;
-  signature?: string;
   unique_key: string;
-  /** Temporary */
-  university?: string;
   updatedAt: string;
   userId: string;
 }

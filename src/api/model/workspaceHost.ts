@@ -8,11 +8,13 @@
 import type { Host } from './host';
 import type { Workspace } from './workspace';
 
-export interface Organization {
+export interface WorkspaceHost {
   createdAt: string;
-  hosts: Host[];
-  id: string;
-  name: string;
+  /** @nullable */
+  deletedAt: string | null;
+  host: Host;
+  hostId: number;
   updatedAt: string;
-  workspaces: Workspace[];
+  workspace: Workspace;
+  workspaceId: string;
 }

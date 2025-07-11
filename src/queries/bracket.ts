@@ -10,6 +10,7 @@ import type {
   InitializeBracketStructureDto,
 } from "@/api/model";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const getBracket = (bracketId: number) => {
   return useQuery({
@@ -72,7 +73,11 @@ export const deleteBracket = (refreshQueries: boolean = false) => {
         queryClient.invalidateQueries({ queryKey: ["getStages"] });
         queryClient.invalidateQueries({ queryKey: ["getBracket"] });
         queryClient.invalidateQueries({ queryKey: ["getBracketGroups"] });
+        toast.success("대진표가 삭제되었습니다.");
       }
+    },
+    onError: () => {
+      toast.error("대진표 삭제에 실패했습니다.");
     },
   });
 };

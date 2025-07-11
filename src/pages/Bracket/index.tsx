@@ -15,7 +15,7 @@ import { getCompetitionsMy } from "@/queries/competitions";
 import { toast } from "sonner";
 import type { GameType, Stage } from "@/api/model";
 import { createStage, deleteStage, getStages } from "@/queries/stage";
-import { useGameStore } from "@/stores/game";
+import { useSelectedGameStore } from "@/stores/game";
 
 export type Sheet = {
   id: string;
@@ -30,9 +30,8 @@ export type Game = {
 
 const Bracket = () => {
   const { isExpand } = useExpandStore();
-  const { setGameId } = useGameStore();
+  const { selectedGame, setSelectedGame } = useSelectedGameStore();
   const { data: competitions = [], isError } = getCompetitionsMy();
-  const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
   const { data: stageDatas } = getStages(
     competitions[0]?.id || 0,
     selectedGame?.id || 0
@@ -41,7 +40,6 @@ const Bracket = () => {
   const { mutate: deleteStageMutate } = deleteStage();
   const [stages, setStages] = useState<Stage[]>([]);
   const games: GameType[] = competitions[0]?.gameTypes || [];
-  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (isError) {
@@ -50,17 +48,14 @@ const Bracket = () => {
   }, [isError]);
 
   useEffect(() => {
-    if (
-      !initialized &&
-      competitions &&
-      competitions[0] &&
-      competitions[0].gameTypes[0]
-    ) {
+    if (selectedGame) return;
+
+    if (competitions && competitions[0] && competitions[0].gameTypes[0]) {
       setSelectedGame(competitions[0].gameTypes[0]);
-      setGameId(competitions[0].gameTypes[0].id.toString());
-      setInitialized(true);
     }
-  }, [competitions, initialized]);
+  }, [competitions]);
+
+  console.log("selectedGame", selectedGame);
 
   useEffect(() => {
     if (!stageDatas) return;
@@ -121,9 +116,8 @@ const Bracket = () => {
           value={selectedGame?.id.toString() || ""}
           className="h-full"
           onValueChange={(value) => {
-            setGameId(value);
             setSelectedGame(
-              games.find((game) => game.id.toString() === value) || null
+              games.find((game) => game.id.toString() === value) || games[0]
             );
           }}
         >

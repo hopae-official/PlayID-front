@@ -41,6 +41,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useSelectedStageStore } from "@/stores/stage";
+import { useUpdateEffect } from "react-use";
+import { Progress } from "@/components/ui/progress";
 
 interface BracketStageProps {
   game: GameType;
@@ -59,9 +62,9 @@ const BracketStage = ({
   const navigate = useNavigate();
   const location = useLocation();
   const { isExpand } = useExpandStore();
-  const [selectedStage, setSelectedStage] = useState<Stage>(stages[0]);
+  const { selectedStage, setSelectedStage } = useSelectedStageStore();
   const { data: stage, isError: isStageError } = getStage(
-    Number(selectedStage.id)
+    Number(selectedStage ? selectedStage.id : stages[0].id)
   );
   const { data: bracketQuery, isError: isBracketError } = getBracket(
     Number(stage?.brackets?.[0]?.id)
@@ -83,30 +86,23 @@ const BracketStage = ({
     limit: 1000,
   });
 
-  const [originalStages, setOriginalStages] = useState<Stage[]>([]);
+  const [originalStages, setOriginalStages] = useState<Stage[]>(stages);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const { toggleSidebar } = useSidebar();
 
   useEffect(() => {
-    const selectedStageId = localStorage.getItem("selectedStageId");
-    const selectedGroupId = localStorage.getItem("selectedGroupId");
-    if (selectedStageId) {
-      setSelectedStage(
-        stages.find((stage) => stage.id.toString() === selectedStageId) ||
-          stages[0]
-      );
-    }
-    if (selectedGroupId) {
-      setSelectedGroupId(Number(selectedGroupId));
-    }
+    setOriginalStages(stages);
+
+    if (selectedStage) return;
+    setSelectedStage(stages[0]);
   }, []);
 
-  useEffect(() => {
+  useUpdateEffect(() => {
     setSelectedStage(stages[0]);
   }, [game, stages]);
 
   useEffect(() => {
-    handleStageChange(originalStages, stages, selectedStage, setSelectedStage);
+    handleStageChange(originalStages, stages, selectedStage!, setSelectedStage);
     setOriginalStages(stages);
   }, [stages]);
 
@@ -132,16 +128,6 @@ const BracketStage = ({
 
     if (isBracketGroupsError) {
       toast.error("그룹을 찾을 수 없습니다.");
-      return;
-    }
-
-    if (isDeleteBracketSuccess) {
-      toast.success("대진표가 삭제되었습니다.");
-      return;
-    }
-
-    if (isDeleteBracketError) {
-      toast.error("대진표 삭제에 실패했습니다.");
       return;
     }
 
@@ -192,7 +178,6 @@ const BracketStage = ({
     }
   };
 
-  // settingNodeMatches 생성 함수 (arrow function)
   const createSettingNodeMatches = (rounds: Round[]) =>
     rounds.map((round) => ({
       id: `${round.id}-setting`,
@@ -211,7 +196,6 @@ const BracketStage = ({
       isSettingNode: true,
     }));
 
-  // gameNodeMatches 생성 함수 (arrow function)
   const createGameNodeMatches = (
     rounds: Round[],
     matches: Match[],
@@ -254,10 +238,12 @@ const BracketStage = ({
                 ),
                 { id: "", name: "" },
               ]
-            : [
-                { id: "", name: "" },
-                { id: "", name: "" },
-              ],
+            : match.participantsCount && match.participantsCount > 0
+            ? Array.from({ length: match.participantsCount }, (_) => ({
+                id: "",
+                name: "",
+              }))
+            : [],
         prevMatchIds: bracketGroups?.matches
           .find((m: BracketGroupOverviewMatchDto) => m.id === match.id)
           ?.prevMatchIds?.map((id: number) => `${id}-game`),
@@ -269,7 +255,7 @@ const BracketStage = ({
           ref.refereeId.toString()
         ),
         isSettingNode: false,
-        winnerRosterId: match.matchParticipants
+        matchWinnerRosterId: match.matchParticipants
           .find((p: MatchParticipant) => p.isWinner)
           ?.rosterId?.toString(),
         isThirdPlace: match.name === "3,4위전",
@@ -331,8 +317,8 @@ const BracketStage = ({
     );
 
     return {
-      id: selectedStage.id.toString(),
-      name: selectedStage.name,
+      id: selectedStage ? selectedStage.id.toString() : stages[0].id.toString(),
+      name: selectedStage ? selectedStage.name : stages[0].name,
       competitors: [],
       bracket: {
         id: bracket.id,
@@ -368,7 +354,7 @@ const BracketStage = ({
         toggleSidebar();
         break;
       case "EDIT":
-        navigate(`/bracket/edit/${bracket?.id}`);
+        navigate(`/stage/${selectedStage?.id}/bracket/${bracket?.id}/edit`);
         break;
       case "DELETE":
         deleteBracketMutate(Number(stage?.brackets?.[0]?.id));
@@ -381,7 +367,7 @@ const BracketStage = ({
   const suppressEdit =
     !location.pathname.includes("result") &&
     (convertToReactFlowStage?.bracket?.groups?.some((group) =>
-      group.matches.some((match) => match.winnerRosterId)
+      group.matches.some((match) => match.matchWinnerRosterId)
     ) ||
       convertToReactFlowStage?.bracket?.groups?.some((group) =>
         group.matches.some((match: CustomMatch) =>
@@ -389,11 +375,19 @@ const BracketStage = ({
         )
       ));
 
+  // 예시: bracket, bracketGroups, rosters의 로딩 상태를 모두 체크
+  const isLoading =
+    !selectedStage ||
+    !stages.length ||
+    (bracket === undefined && !isBracketError) ||
+    (bracketGroups === undefined && !isBracketGroupsError) ||
+    (rosters === undefined && !isRostersError);
+
   return (
     <div className="flex h-full flex-col gap-4">
       <Tabs
         className="h-full gap-0"
-        value={selectedStage.id.toString()}
+        value={selectedStage?.id.toString() || stages[0].id.toString()}
         onValueChange={(value) => {
           setSelectedStage(
             stages.find((stage) => stage.id.toString() === value) || stages[0]
@@ -406,7 +400,7 @@ const BracketStage = ({
             {stages.map((stage) => (
               <div
                 className={`min-w-[100px] h-[40px] flex flex-row items-center rounded-t-md cursor-pointer ${
-                  selectedStage.id === stage.id
+                  selectedStage?.id === stage.id
                     ? "bg-[#18181B]"
                     : "bg-transparent"
                 }`}
@@ -441,10 +435,12 @@ const BracketStage = ({
           </TabsList>
         )}
         <TabsContent
-          value={selectedStage.id.toString()}
+          value={selectedStage?.id.toString() || stages[0].id.toString()}
           className="flex h-full flex-col items-center rounded-b-md rounded-tr-md"
         >
-          {bracket ? (
+          {isLoading ? (
+            <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md" />
+          ) : bracket ? (
             <BracketShowingBoard
               stage={convertToReactFlowStage!}
               selectedGroupId={selectedGroupId.toString()}
@@ -469,7 +465,7 @@ const BracketStage = ({
                 className="mt-6 cursor-pointer"
                 size="lg"
                 onClick={() => {
-                  navigate(`/stage/${selectedStage.id}/bracket/create`);
+                  navigate(`/stage/${selectedStage?.id}/bracket/create`);
                 }}
               >
                 대진표 생성
@@ -478,7 +474,7 @@ const BracketStage = ({
           )}
           {!location.pathname.includes("result") &&
             !isExpand &&
-            selectedStage.id !== stages[0].id && (
+            selectedStage?.id !== stages[0].id && (
               <Dialog
                 open={openDeleteDialog}
                 onOpenChange={setOpenDeleteDialog}
@@ -490,7 +486,7 @@ const BracketStage = ({
                       variant="destructive"
                       className="bg-zinc-950 text-white cursor-pointer"
                     >
-                      {"스테이지 삭제"}
+                      스테이지 삭제
                     </Button>
                   </DialogTrigger>
                 </div>
@@ -524,7 +520,7 @@ const BracketStage = ({
                                 setOpenDeleteDialog(false);
                               }
                             : () => {
-                                handleDeleteStage(Number(selectedStage.id));
+                                handleDeleteStage(Number(selectedStage?.id));
                                 setOpenDeleteDialog(false);
                               }
                         }

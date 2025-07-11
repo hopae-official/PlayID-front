@@ -36,7 +36,7 @@ export type CustomMatch = {
   scheduledTime?: string;
   bestOf?: 1 | 3 | 5;
   venue?: string;
-  winnerRosterId?: string;
+  matchWinnerRosterId?: string;
   referee?: string[];
   isSettingNode?: boolean;
   isThirdPlace?: boolean;
@@ -1380,15 +1380,13 @@ const MatchNode = (props: any) => {
         />
       )}
 
-      {boardType === BOARD_TYPE.RESULT &&
-        match.name !== "Total" &&
-        openDetailResultDialog && (
-          <MatchResultDetailDrawer
-            match={match}
-            openDetailResultDialog={openDetailResultDialog}
-            onCloseDetailResultDialog={() => setOpenDetailResultDialog(false)}
-          />
-        )}
+      {boardType === BOARD_TYPE.RESULT && match.name !== "Total" && (
+        <MatchResultDetailDrawer
+          match={match}
+          openDetailResultDialog={openDetailResultDialog}
+          onCloseDetailResultDialog={() => setOpenDetailResultDialog(false)}
+        />
+      )}
 
       {stage.bracket?.format === "SINGLE_ELIMINATION" && (
         <div className="space-y-1">
@@ -1398,8 +1396,8 @@ const MatchNode = (props: any) => {
                 <div
                   key={idx}
                   className={`h-10 flex items-center justify-between p-2 rounded ${
-                    match.winnerRosterId
-                      ? match.winnerRosterId === participant.id
+                    match.matchWinnerRosterId
+                      ? match.matchWinnerRosterId === participant.id
                         ? "bg-zinc-950 text-white"
                         : "bg-zinc-900 text-zinc-400"
                       : participant.name
@@ -1407,12 +1405,12 @@ const MatchNode = (props: any) => {
                       : "bg-zinc-900"
                   } ${
                     match.round === lastRound &&
-                    match.winnerRosterId &&
+                    match.matchWinnerRosterId &&
                     (match.isThirdPlace
-                      ? match.winnerRosterId === participant.id
+                      ? match.matchWinnerRosterId === participant.id
                         ? "border border-yellow-700"
                         : ""
-                      : match.winnerRosterId === participant.id
+                      : match.matchWinnerRosterId === participant.id
                       ? "border border-yellow-200"
                       : "border border-sky-200")
                   }`}
@@ -1424,36 +1422,37 @@ const MatchNode = (props: any) => {
                     match.singleEliminationResult.setResult &&
                     match.singleEliminationResult.setResult.length > 0 && (
                       <div className="flex items-center gap-4">
-                        {match.round === lastRound && match.winnerRosterId && (
-                          <span
-                            className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
+                        {match.round === lastRound &&
+                          match.matchWinnerRosterId && (
+                            <span
+                              className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
                           ${
                             match.isThirdPlace
-                              ? match.winnerRosterId === participant.id
+                              ? match.matchWinnerRosterId === participant.id
                                 ? "bg-yellow-700 text-amber-950"
                                 : "bg-transparent"
-                              : match.winnerRosterId === participant.id
+                              : match.matchWinnerRosterId === participant.id
                               ? "bg-yellow-300 text-yellow-700"
                               : "bg-sky-300 text-sky-700"
                           }`}
-                          >
-                            {match.isThirdPlace
-                              ? match.winnerRosterId === participant.id
-                                ? "3"
-                                : ""
-                              : match.winnerRosterId === participant.id
-                              ? "1"
-                              : "2"}
-                          </span>
-                        )}
+                            >
+                              {match.isThirdPlace
+                                ? match.matchWinnerRosterId === participant.id
+                                  ? "3"
+                                  : ""
+                                : match.matchWinnerRosterId === participant.id
+                                ? "1"
+                                : "2"}
+                            </span>
+                          )}
                         <span
                           className={`text-sm ${
-                            match.winnerRosterId === participant.id
+                            match.matchWinnerRosterId === participant.id
                               ? "text-white"
                               : "text-zinc-400"
                           }`}
                         >
-                          {match.winnerRosterId &&
+                          {match.matchWinnerRosterId &&
                             match.singleEliminationResult.setResult.filter(
                               (r: { winnerRosterId?: string }) =>
                                 r.winnerRosterId === participant.id
@@ -1469,38 +1468,28 @@ const MatchNode = (props: any) => {
 
       {stage.bracket?.format === "FREE_FOR_ALL" && (
         <div className="space-y-1">
-          {(() => {
-            const isSetResult =
-              match.freeForAllResult?.setResult?.length &&
-              match.freeForAllResult?.setResult?.length > 2;
-            if (isSetResult && match.freeForAllResult?.setResult) {
-              // setResult 타입: { id?: string; name?: string; point?: number; ... }
-              return match.freeForAllResult.setResult.map(
+          {match.freeForAllResult &&
+          match.freeForAllResult.setResult &&
+          match.freeForAllResult.setResult.length > 2
+            ? match.freeForAllResult.setResult.map(
                 (
                   participant: { id?: string; name?: string; point?: number },
                   idx: number
-                ) => {
-                  const point = participant.point ?? "";
-                  return (
-                    <div
-                      key={participant.id ?? idx}
-                      className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
-                    >
-                      <span className="font-medium">
-                        {participant.name || (
-                          <span className="opacity-50"></span>
-                        )}
-                      </span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm">{point}</span>
-                      </div>
+                ) => (
+                  <div
+                    key={participant.id ?? idx}
+                    className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
+                  >
+                    <span className="font-medium">
+                      {participant.name || <span className="opacity-50"></span>}
+                    </span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm">{participant.point ?? ""}</span>
                     </div>
-                  );
-                }
-              );
-            } else {
-              // participants 타입: { id: string; name: string }
-              return match.participants?.map(
+                  </div>
+                )
+              )
+            : (match.participants ?? []).map(
                 (participant: { id: string; name: string }, idx: number) => {
                   const point =
                     match.freeForAllResult?.setResult?.find?.(
@@ -1508,8 +1497,10 @@ const MatchNode = (props: any) => {
                     )?.point ?? "";
                   return (
                     <div
-                      key={participant.id ?? idx}
-                      className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
+                      key={idx}
+                      className={`h-10 flex items-center justify-between p-2 rounded ${
+                        participant.name ? "bg-zinc-950" : "bg-zinc-900"
+                      }`}
                     >
                       <span className="font-medium">
                         {participant.name || (
@@ -1522,9 +1513,7 @@ const MatchNode = (props: any) => {
                     </div>
                   );
                 }
-              );
-            }
-          })()}
+              )}
         </div>
       )}
 

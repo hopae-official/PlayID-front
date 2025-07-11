@@ -6,11 +6,11 @@
  * OpenAPI spec version: 1.0
  */
 
-export type SignInWithPassResponseDtoRole = typeof SignInWithPassResponseDtoRole[keyof typeof SignInWithPassResponseDtoRole];
+export type SignInResponseDtoRole = typeof SignInResponseDtoRole[keyof typeof SignInResponseDtoRole];
 
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const SignInWithPassResponseDtoRole = {
+export const SignInResponseDtoRole = {
   PLAYER: 'PLAYER',
   PRO_PLAYER: 'PRO_PLAYER',
   REFEREE: 'REFEREE',

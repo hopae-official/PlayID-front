@@ -28,6 +28,8 @@ export interface Match {
   /** @nullable */
   name: string | null;
   /** @nullable */
+  participantsCount: number | null;
+  /** @nullable */
   resultMemo: string | null;
   /** @nullable */
   resultSubmittedAt: string | null;
@@ -47,4 +49,6 @@ export interface Match {
   winnerProgressionMatches: Match[];
   /** @nullable */
   winnerProgressionMatchId: number | null;
+  /** workspace id */
+  workspaceId: string;
 }

@@ -2576,7 +2576,6 @@ const groupMatchesByRound = (matches: any[]) => {
 // 4. 노드/엣지 변환 및 위치 계산 (상위 라운드는 prevMatchIds의 y좌표 평균)
 const useBracketNodesEdges = (matches: any[]) => {
   const rounds = groupMatchesByRound(matches);
-  console.log(rounds);
   const columnWidth = 300;
   const rowHeight = 150;
   const nodes: Node[] = [];
@@ -2728,8 +2727,6 @@ const SingleElimination = ({ count }: SingleEliminationsProps) => {
   }, [competitors]);
 
   const { nodes, edges } = useBracketNodesEdges(matches);
-
-  console.log(nodes);
 
   return (
     <div className="w-full bg-zinc-900 rounded-md">

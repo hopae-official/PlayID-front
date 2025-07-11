@@ -5,12 +5,12 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
-import type { SignInWithPassResponseDtoRole } from './signInWithPassResponseDtoRole';
+import type { SignInResponseDtoRole } from './signInResponseDtoRole';
 import type { User } from './user';
 
-export interface SignInWithPassResponseDto {
+export interface SignInResponseDto {
   existingUser?: boolean;
-  role: SignInWithPassResponseDtoRole;
+  role: SignInResponseDtoRole;
   token: string;
   user: User;
 }

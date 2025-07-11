@@ -42,7 +42,8 @@ import {
 } from "@/queries/match";
 import { toast } from "sonner";
 import type { GetSetResultsResponseDto } from "@/api/model";
-import { useGameStore } from "@/stores/game";
+import { AxiosError } from "axios";
+import { useSelectedGameStore } from "@/stores/game";
 
 type SingleResult = { winnerRosterId?: string; screenshotUrl?: string };
 type FfaResult = {
@@ -75,12 +76,22 @@ const getInitialResultList = (
 ) => {
   const count = match.bestOf || 1;
   if (stage?.bracket?.format === "SINGLE_ELIMINATION") {
-    if (match.singleEliminationResult?.setResult) {
+    if (
+      match.singleEliminationResult?.setResult &&
+      match.singleEliminationResult.setResult.length > 0
+    ) {
       return match.singleEliminationResult.setResult.map((item) => ({
-        winnerRosterId: item.winnerRosterId ?? "",
+        winnerRosterId:
+          match.participants?.filter((participant) => participant.id !== "")
+            .length === 1
+            ? match.participants?.filter(
+                (participant) => participant.id !== ""
+              )[0]?.id ?? ""
+            : item.winnerRosterId ?? "",
         screenshotUrl: item.screenshotUrl ?? "",
       }));
     }
+
     return Array.from({ length: count }, () => ({
       winnerRosterId: "",
       screenshotUrl: "",
@@ -107,21 +118,12 @@ const getInitialResultList = (
 };
 
 const getScreenshotUrls = (
-  stage: CustomStage,
-  match: CustomMatch,
   matchResults: number,
   setMatchesResults: GetSetResultsResponseDto
 ) => {
-  if (stage.bracket?.format === "SINGLE_ELIMINATION") {
-    const arr = match.singleEliminationResult?.setResult ?? [];
-    return arr.length > 0
-      ? setMatchesResults.setResults.map((result) => result.screenshotUrl)
-      : Array(matchResults).fill(null);
-  } else {
-    return match.freeForAllResult?.screenshotUrl
-      ? [match.freeForAllResult.screenshotUrl]
-      : Array(matchResults).fill(null);
-  }
+  return setMatchesResults.setResults.length > 0
+    ? setMatchesResults.setResults.map((result) => result.screenshotUrl)
+    : Array(matchResults).fill(null);
 };
 
 const MatchResultDrawer = ({
@@ -132,7 +134,7 @@ const MatchResultDrawer = ({
   const matchResults =
     stage.bracket?.format === "SINGLE_ELIMINATION" ? match.bestOf || 1 : 1;
   const isSingle = stage?.bracket?.format === "SINGLE_ELIMINATION";
-  const { gameId } = useGameStore();
+  const selectedGame = useSelectedGameStore((state) => state.selectedGame);
   const [matchResultList, setMatchResultList] = useState<
     SingleResult[] | FfaResult[]
   >(() => getInitialResultList(match, stage));
@@ -164,21 +166,14 @@ const MatchResultDrawer = ({
   const {
     mutateAsync: patchMatchProgressMutate,
     isError: isErrorPatchMatchProgress,
+    error: errorPatchMatchProgress,
   } = patchMatchProgress();
 
   useEffect(() => {
-    if (
-      isErrorPatchSetMatchesResults ||
-      isErrorPatchSetParticipantStats ||
-      isErrorPatchMatchProgress
-    ) {
+    if (isErrorPatchSetMatchesResults || isErrorPatchSetParticipantStats) {
       toast.error("대진 결과 저장에 실패했습니다.");
     }
-  }, [
-    isErrorPatchSetMatchesResults,
-    isErrorPatchSetParticipantStats,
-    isErrorPatchMatchProgress,
-  ]);
+  }, [isErrorPatchSetMatchesResults, isErrorPatchSetParticipantStats]);
 
   const matchWinner = useMemo(() => {
     if (!isSingle || !match.participants) return null;
@@ -198,8 +193,6 @@ const MatchResultDrawer = ({
     if (openDrawer) {
       setMatchResultList(getInitialResultList(match, stage));
       const screenshotUrls = getScreenshotUrls(
-        stage,
-        match,
         matchResults,
         setMatchesResults ?? { setResults: [] }
       );
@@ -211,7 +204,7 @@ const MatchResultDrawer = ({
           ""
       );
     }
-  }, [openDrawer, match, stage, matchResults]);
+  }, [openDrawer, match, stage, matchResults, setMatchesResults]);
 
   const handleScreenshotChange = useCallback(
     (idx: number, file: File | null) => {
@@ -246,7 +239,7 @@ const MatchResultDrawer = ({
         });
       }
     },
-    []
+    [setMatchesResults]
   );
 
   const handleOpenDialog = useCallback(
@@ -262,6 +255,66 @@ const MatchResultDrawer = ({
 
   const handleSaveResult = useCallback(() => {
     if (isSingle) {
+      //매치의 승자가 있을경우
+      if (matchWinner) {
+        //매치의 승자가 있을경우 승자 정보 업데이트
+        patchMatchProgressMutate({
+          matchId: Number(match.id.split("-")[0]),
+          progress: {
+            winnerRosterId: Number(matchWinner.id),
+            allRosterIds:
+              match.participants
+                ?.filter((participant) => participant.id !== "")
+                .map((participant) => {
+                  return Number(participant.id);
+                }) ?? [],
+          },
+        });
+
+        //승자 정보 업데이트 실패시
+        if (isErrorPatchMatchProgress) {
+          // AxiosError로 단언
+          const axiosError = errorPatchMatchProgress as AxiosError<any>;
+          const errorMessage = axiosError.response?.data?.message;
+
+          toast.error(
+            errorMessage === "Winner progression match has winner"
+              ? "다음 매치에 결과가 입력되어 승패를 변경할 수 없습니다."
+              : errorMessage || "대진 결과 저장에 실패했습니다."
+          );
+          //매치 메모만 업데이트
+          patchSetMatchesResultsMutate({
+            matchId: Number(match.id.split("-")[0]),
+            saveSetResultsDto: {
+              resultMemo,
+              setResults: [],
+            },
+          });
+          setOpenDrawer(false);
+          return;
+        } else {
+          //매치 메모, 세트 결과 업데이트
+          patchSetMatchesResultsMutate({
+            matchId: Number(match.id.split("-")[0]),
+            saveSetResultsDto: {
+              resultMemo,
+              setResults: setMatchesResults?.setResults.map((result) => ({
+                id: result.id,
+                winnerRosterId: (matchResultList as SingleResult[])[
+                  result.setNumber - 1
+                ]?.winnerRosterId
+                  ? Number(
+                      (matchResultList as SingleResult[])[result.setNumber - 1]
+                        ?.winnerRosterId
+                    )
+                  : undefined,
+              })),
+            },
+          });
+        }
+      }
+
+      //매치의 승자없이 세트나 메모 저장할경우
       patchSetMatchesResultsMutate({
         matchId: Number(match.id.split("-")[0]),
         saveSetResultsDto: {
@@ -280,21 +333,16 @@ const MatchResultDrawer = ({
         },
       });
 
-      if (matchWinner) {
-        patchMatchProgressMutate({
-          matchId: Number(match.id.split("-")[0]),
-          progress: {
-            winnerRosterId: Number(matchWinner.id),
-            allRosterIds:
-              match.participants?.map((participant) => {
-                return Number(participant.id);
-              }) ?? [],
-          },
-        });
-      }
-
       setOpenDrawer(false);
     } else {
+      patchSetMatchesResultsMutate({
+        matchId: Number(match.id.split("-")[0]),
+        saveSetResultsDto: {
+          resultMemo,
+          setResults: [],
+        },
+      });
+
       patchSetParticipantStatsMutate({
         matchId: Number(match.id.split("-")[0]),
         saveSetParticipantStatsDto: {
@@ -496,10 +544,16 @@ const MatchResultDrawer = ({
       });
     }
 
+    let ranking = 0;
+    let prevPoint = 0;
+
     newList.forEach((result, i) => {
       if (result.point === undefined) return;
-
-      result.ranking = i + 1;
+      if (result.point !== prevPoint) {
+        prevPoint = result.point;
+        ranking = i + 1;
+      }
+      result.ranking = ranking;
     });
 
     setMatchResultList(newList);
@@ -625,6 +679,13 @@ const MatchResultDrawer = ({
     [matchResultList, previewDialogIdx, screenshots, previewUrls]
   );
 
+  const isBye = useMemo(
+    () =>
+      match.participants?.filter((participant) => participant.id !== "")
+        .length === 1,
+    [match.participants]
+  );
+
   return (
     <Drawer
       direction="right"
@@ -687,67 +748,94 @@ const MatchResultDrawer = ({
           {isSingle ? (
             <div className="w-full flex flex-col space-y-4">
               <div className="w-full flex justify-around items-center">
-                <span className="w-44 text-center text-base font-semibold">
-                  {match.participants?.[0]?.name}
-                </span>
-                <span className="text-xs font-semibold text-zinc-400">vs</span>
-                <span className="w-44 text-center text-base font-semibold">
-                  {match.participants?.[1]?.name}
-                </span>
+                {isBye ? (
+                  <span className="w-44 text-center text-base font-semibold">
+                    {
+                      match.participants?.filter(
+                        (participant) => participant.id !== ""
+                      )[0]?.name
+                    }
+                  </span>
+                ) : (
+                  <>
+                    <span className="w-44 text-center text-base font-semibold">
+                      {match.participants?.[0]?.name}
+                    </span>
+                    <span className="text-xs font-semibold text-zinc-400">
+                      vs
+                    </span>
+                    <span className="w-44 text-center text-base font-semibold">
+                      {match.participants?.[1]?.name}
+                    </span>
+                  </>
+                )}
               </div>
-              {(matchResultList as SingleResult[]).map((result, idx) => (
-                <SetSingleResultInput key={idx} result={result} idx={idx} />
-              ))}
+              {!isBye &&
+                (matchResultList as SingleResult[]).map((result, idx) => (
+                  <SetSingleResultInput key={idx} result={result} idx={idx} />
+                ))}
               <div className="w-full flex justify-center items-center gap-20 py-4">
-                <div className="flex flex-1 justify-end relative">
-                  {isSingle && matchWinner && (
-                    <Badge
-                      className={`absolute top-1/2 -translate-y-1/2 left-0 ${
-                        matchWinner?.id === match.participants?.[0]?.id
-                          ? "bg-green-900 text-white"
-                          : "bg-red-900 text-white"
-                      }`}
+                {isBye ? (
+                  <div className="flex flex-1 items-center justify-center relative">
+                    <div
+                      className={`w-24 text-center bg-green-900 text-white p-2 rounded-md`}
                     >
-                      {matchWinner?.id === match.participants?.[0]?.id
-                        ? "승리"
-                        : "패배"}
-                    </Badge>
-                  )}
-                  <span className="text-2xl font-bold">
-                    {isSingle
-                      ? (matchResultList as SingleResult[]).filter(
-                          (result) =>
-                            result.winnerRosterId ===
-                            match.participants?.[0]?.id
-                        ).length
-                      : 0}
-                  </span>
-                </div>
-                <span className="text-2xl font-bold">:</span>
-                <div className="flex flex-1 justify-start relative">
-                  {isSingle && matchWinner && (
-                    <Badge
-                      className={`absolute top-1/2 -translate-y-1/2 right-0 ${
-                        matchWinner?.id === match.participants?.[1]?.id
-                          ? "bg-green-900 text-white"
-                          : "bg-red-900 text-white"
-                      }`}
-                    >
-                      {matchWinner?.id === match.participants?.[1]?.id
-                        ? "승리"
-                        : "패배"}
-                    </Badge>
-                  )}
-                  <span className="text-2xl font-bold">
-                    {isSingle
-                      ? (matchResultList as SingleResult[]).filter(
-                          (result) =>
-                            result.winnerRosterId ===
-                            match.participants?.[1]?.id
-                        ).length
-                      : 0}
-                  </span>
-                </div>
+                      부전승
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-1 justify-end relative">
+                      {isSingle && matchWinner && (
+                        <Badge
+                          className={`absolute top-1/2 -translate-y-1/2 left-0 ${
+                            matchWinner?.id === match.participants?.[0]?.id
+                              ? "bg-green-900 text-white"
+                              : "bg-red-900 text-white"
+                          }`}
+                        >
+                          {matchWinner?.id === match.participants?.[0]?.id
+                            ? "승리"
+                            : "패배"}
+                        </Badge>
+                      )}
+                      <span className="text-2xl font-bold">
+                        {isSingle
+                          ? (matchResultList as SingleResult[]).filter(
+                              (result) =>
+                                result.winnerRosterId ===
+                                match.participants?.[0]?.id
+                            ).length
+                          : 0}
+                      </span>
+                    </div>
+                    <span className="text-2xl font-bold">:</span>
+                    <div className="flex flex-1 justify-start relative">
+                      {isSingle && matchWinner && (
+                        <Badge
+                          className={`absolute top-1/2 -translate-y-1/2 right-0 ${
+                            matchWinner?.id === match.participants?.[1]?.id
+                              ? "bg-green-900 text-white"
+                              : "bg-red-900 text-white"
+                          }`}
+                        >
+                          {matchWinner?.id === match.participants?.[1]?.id
+                            ? "승리"
+                            : "패배"}
+                        </Badge>
+                      )}
+                      <span className="text-2xl font-bold">
+                        {isSingle
+                          ? (matchResultList as SingleResult[]).filter(
+                              (result) =>
+                                result.winnerRosterId ===
+                                match.participants?.[1]?.id
+                            ).length
+                          : 0}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           ) : (
@@ -765,7 +853,7 @@ const MatchResultDrawer = ({
           </div>
         </div>
         <DrawerFooter className="p-6">
-          {gameId === "7" && (
+          {selectedGame?.gameId === "fco" && (
             <Button
               size="lg"
               variant="outline"
@@ -775,19 +863,7 @@ const MatchResultDrawer = ({
               상세 결과
             </Button>
           )}
-          <Button
-            className="cursor-pointer"
-            onClick={handleSaveResult}
-            // disabled={
-            //   isSingle
-            //     ? (matchResultList as SingleResult[]).every(
-            //         (result) => result.winnerRosterId === undefined
-            //       )
-            //     : (matchResultList as FfaResult[]).every(
-            //         (result) => result.point === 0
-            //       )
-            // }
-          >
+          <Button className="cursor-pointer" onClick={handleSaveResult}>
             결과 저장
           </Button>
         </DrawerFooter>

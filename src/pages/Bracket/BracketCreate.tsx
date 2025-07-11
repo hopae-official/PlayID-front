@@ -164,7 +164,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
             ...state.bracket,
             groups: [],
           },
-          competitors: rosters,
+          competitors: rosters.map(() => ({ id: uuidv4(), name: "" })),
         };
       }
       const splitIndex = Math.floor(rosters.length / 2);
@@ -365,6 +365,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
           hasThirdPlaceMatch: false,
           format: "SINGLE_ELIMINATION",
         },
+        competitors: [],
         totalRounds: 1,
       };
 
@@ -462,11 +463,7 @@ const BracketCreate = () => {
     isError: isCreateBracketStructureError,
   } = createBracketStructure();
 
-  const {
-    mutateAsync: deleteBracketMutate,
-    isSuccess: isDeleteBracketSuccess,
-    isError: isDeleteBracketError,
-  } = deleteBracket();
+  const { mutateAsync: deleteBracketMutate } = deleteBracket();
 
   const initialState: CustomStage = {
     id: params.id || "",
@@ -525,16 +522,6 @@ const BracketCreate = () => {
       toast.error("대진표 저장에 실패했습니다.");
     }
   }, [isCreateBracketStructureSuccess, isCreateBracketStructureError]);
-
-  useEffect(() => {
-    if (isDeleteBracketSuccess) {
-      toast.success("대진표가 삭제되었습니다.");
-    }
-
-    if (isDeleteBracketError) {
-      toast.error("대진표 삭제에 실패했습니다.");
-    }
-  }, [isDeleteBracketSuccess, isDeleteBracketError]);
 
   const handleCreateBracket = async () => {
     if (stage.name === "") {

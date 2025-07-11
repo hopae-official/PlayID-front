@@ -38,6 +38,7 @@ import type {
   Match,
   MatchParticipant,
   MatchReferee,
+  MatchSetParticipantStat,
   MatchSetResult,
   Roster,
   Round,
@@ -48,7 +49,7 @@ import { getAllRosters } from "@/queries/roster";
 import dayjs from "dayjs";
 import { getBracket } from "@/queries/bracket";
 import { getBracketGroups } from "@/queries/bracketGroups";
-import { getStage } from "@/queries/stage";
+import { getStage, getStages } from "@/queries/stage";
 
 export type Competitor = {
   id: string;
@@ -177,7 +178,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
             ...state.bracket,
             groups: [],
           },
-          competitors: rosters,
+          competitors: rosters.map(() => ({ id: uuidv4(), name: "" })),
         };
       }
       const splitIndex = Math.floor(rosters.length / 2);
@@ -451,7 +452,7 @@ const checkMinimumRemainingTeams = (
 
 const BracketEdit = () => {
   const navigate = useNavigate();
-  const params = useParams();
+  const { stageId, bracketId } = useParams();
   const location = useLocation();
   const { isExpand } = useExpandStore();
   const stageNameRef = useRef<HTMLInputElement>(null);
@@ -465,19 +466,18 @@ const BracketEdit = () => {
     isError: isCreateBracketStructureError,
   } = createBracketStructure();
 
-  const {
-    mutateAsync: deleteBracketMutate,
-    isSuccess: isDeleteBracketSuccess,
-    isError: isDeleteBracketError,
-  } = deleteBracket();
+  const { mutateAsync: deleteBracketMutate } = deleteBracket();
 
   const { data: bracketQuery, isError: isBracketError } = getBracket(
-    Number(params.id)
+    Number(bracketId)
   );
   const bracket = isBracketError ? null : bracketQuery;
 
   const { data: stageQuery } = getStage(Number(bracketQuery?.stageId));
-
+  const { data: stages } = getStages(
+    stageQuery?.competitionId || 1,
+    stageQuery?.gameTypeId || 1
+  );
   const { data: rosters } = getAllRosters({
     limit: 100,
     // gameTypeId: Number(params.id),
@@ -514,7 +514,6 @@ const BracketEdit = () => {
       isSettingNode: true,
     }));
 
-  // gameNodeMatches 생성 함수 (arrow function)
   const createGameNodeMatches = (
     rounds: Round[],
     matches: Match[],
@@ -557,10 +556,12 @@ const BracketEdit = () => {
                 ),
                 { id: "", name: "" },
               ]
-            : [
-                { id: "", name: "" },
-                { id: "", name: "" },
-              ],
+            : match.participantsCount && match.participantsCount > 0
+            ? Array.from({ length: match.participantsCount }, (_) => ({
+                id: "",
+                name: "",
+              }))
+            : [],
         prevMatchIds: bracketGroups?.matches
           .find((m: BracketGroupOverviewMatchDto) => m.id === match.id)
           ?.prevMatchIds?.map((id: number) => `${id}-game`),
@@ -576,13 +577,43 @@ const BracketEdit = () => {
           .find((p: MatchParticipant) => p.isWinner)
           ?.rosterId?.toString(),
         isThirdPlace: match.name === "3,4위전",
-        result: {
-          resultMemo: match.resultMemo || "",
-          setResult: match.matchSetResults.map((set: MatchSetResult) => ({
-            winnerRosterId: set.winnerRosterId?.toString(),
-            screenshotUrl: set.screenshotUrl || "",
-          })),
-        },
+        // singleElimination 결과
+        ...(bracket?.format === "SINGLE_ELIMINATION" && {
+          singleEliminationResult: {
+            resultMemo: match.resultMemo || "",
+            setResult: match.matchSetResults.map((set: MatchSetResult) => ({
+              winnerRosterId: set.winnerRosterId?.toString(),
+              screenshotUrl: set.screenshotUrl || "",
+            })),
+          },
+        }),
+        // freeForAll 결과
+        ...(bracket?.format === "FREE_FOR_ALL" && {
+          freeForAllResult: {
+            resultMemo: match.resultMemo || "",
+            screenshotUrl: match.matchSetResults[0].screenshotUrl || "",
+            setResult: match.matchSetResults[0].matchSetParticipantStats.map(
+              (stat: MatchSetParticipantStat) => {
+                const participant = match.matchParticipants.find(
+                  (participant) => participant.id === stat.matchParticipantId
+                );
+                return {
+                  id: participant?.rosterId.toString(),
+                  name:
+                    rosters?.find(
+                      (roster: Roster) => roster.id === participant?.rosterId
+                    )?.team?.name ||
+                    rosters?.find(
+                      (roster: Roster) => roster.id === participant?.rosterId
+                    )?.player?.organization ||
+                    "",
+                  point: stat.statPayload?.point as number,
+                  ranking: stat.statPayload?.ranking as number,
+                };
+              }
+            ),
+          },
+        }),
       };
     });
 
@@ -603,10 +634,17 @@ const BracketEdit = () => {
       rosters?.data || []
     );
 
+    const competitorCountSum = rounds
+      .find((round) => round.roundNumber === 1)
+      ?.matches.reduce((acc, match) => acc + (match.participantsCount || 0), 0);
+
     return {
       id: stageQuery?.id.toString(),
       name: stageQuery?.name,
-      competitors: [],
+      competitors: Array.from({ length: competitorCountSum || 0 }, (_) => ({
+        id: uuidv4(),
+        name: "",
+      })),
       bracket: {
         id: bracket.id,
         format: bracket.format as CreateBracketDtoFormat,
@@ -614,10 +652,14 @@ const BracketEdit = () => {
         groups: bracket.groups.map((group: BracketGroup) => ({
           id: group.id.toString(),
           name: group.name,
-          competitors: [],
+          competitors: Array.from({ length: competitorCountSum || 0 }, (_) => ({
+            id: uuidv4(),
+            name: "",
+          })),
           matches: [...settingNodeMatches, ...gameNodeMatches],
         })),
       },
+      totalRounds: bracket.format === "FREE_FOR_ALL" ? rounds.length : 1,
     };
   }, [bracket, bracketGroups, rosters, selectedGroupId]);
 
@@ -626,6 +668,7 @@ const BracketEdit = () => {
   };
 
   const [stage, dispatch] = useReducer(stageReducer, initialState);
+
   const [isFinishUpdate, setIsFinishUpdate] = useState<boolean>(
     isEdit ? false : true
   );
@@ -636,20 +679,20 @@ const BracketEdit = () => {
     isError,
   } = createBracket();
 
-  useEffect(() => {
-    if (rosters && rosters.data && rosters.data.length > 0) {
-      dispatch({
-        type: "SET_COMPETITORS_COUNT",
-        payload: {
-          count: rosters.data.length,
-          rosters: rosters.data.map((roster) => ({
-            id: roster.id.toString(),
-            name: roster.team?.name || "",
-          })),
-        },
-      });
-    }
-  }, [rosters]);
+  // useEffect(() => {
+  //   if (rosters && rosters.data && rosters.data.length > 0) {
+  //     dispatch({
+  //       type: "SET_COMPETITORS_COUNT",
+  //       payload: {
+  //         count: rosters.data.length,
+  //         rosters: rosters.data.map((roster) => ({
+  //           id: roster.id.toString(),
+  //           name: roster.team?.name || "",
+  //         })),
+  //       },
+  //     });
+  //   }
+  // }, [rosters]);
 
   useEffect(() => {
     if (isSuccess) {
@@ -669,16 +712,6 @@ const BracketEdit = () => {
     }
   }, [isCreateBracketStructureSuccess, isCreateBracketStructureError]);
 
-  useEffect(() => {
-    if (isDeleteBracketSuccess) {
-      toast.success("대진표가 삭제되었습니다.");
-    }
-
-    if (isDeleteBracketError) {
-      toast.error("대진표 삭제에 실패했습니다.");
-    }
-  }, [isDeleteBracketSuccess, isDeleteBracketError]);
-
   const handleCreateBracket = async () => {
     if (stage.name === "") {
       setStageNameError(true);
@@ -692,7 +725,7 @@ const BracketEdit = () => {
 
     const response = await createBracketMutate({
       format: stage.bracket?.format || "SINGLE_ELIMINATION",
-      stageId: Number(params.id),
+      stageId: Number(stageId),
       stageName: stage.name,
       groups:
         (stage.bracket?.groups?.length || 0) > 0
@@ -1254,6 +1287,7 @@ const BracketEdit = () => {
           {isCreateBracket && (
             <AssignCompetitorDialog
               stage={stage}
+              stages={stages}
               group={stage.bracket?.groups?.find(
                 (group) => group.id === selectedGroupId
               )}
@@ -1290,7 +1324,7 @@ const BracketEdit = () => {
       </div>
       {isCreateBracket ? (
         <BracketCreateEditBoard
-          stage={initialState}
+          stage={stage}
           isFinishUpdate={isFinishUpdate}
           dispatch={dispatch}
           selectedGroupId={selectedGroupId}

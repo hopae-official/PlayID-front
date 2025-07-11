@@ -11,6 +11,7 @@ import { Button } from "../ui/button";
 import { type CustomMatch } from "@/pages/Bracket/BracketShowingBoard";
 import {
   getSetMatchesResults,
+  getSetParticipantStats,
   // getSetParticipantStats,
   patchSetParticipantStats,
 } from "@/queries/match";
@@ -24,7 +25,7 @@ import {
   TableRow,
 } from "../ui/table";
 import { Input } from "../ui/input";
-import { toast } from "sonner";
+import type { SetParticipantStatSaveDto } from "@/api/model";
 
 interface MatchResultDetailDrawerProps {
   match?: CustomMatch;
@@ -40,9 +41,13 @@ const MatchResultDetailDrawer = ({
   const [setParticipantStats, setSetParticipantStats] = useState<
     {
       matchSetResultId: number;
-      rosterId: string;
+      rosterId: number;
       name: string;
-      payload: { gains: number; losses: number; penaltyShootout: string };
+      payload: {
+        gains: number | "";
+        losses: number | "";
+        penaltyShootout: number | "";
+      };
     }[][]
   >([]);
 
@@ -51,57 +56,94 @@ const MatchResultDetailDrawer = ({
     openDetailResultDialog
   );
 
-  // const { data: setParticipantStatsQuery } = getSetParticipantStats(
-  //   Number(match?.id.split("-")[0]),
-  //   openDetailResultDialog
-  // );
+  const { data: setParticipantStatsQuery } = getSetParticipantStats(
+    Number(match?.id.split("-")[0]),
+    openDetailResultDialog
+  );
 
   const { mutateAsync: patchSetParticipantStatsMutate } =
     patchSetParticipantStats();
 
   useEffect(() => {
-    const matchResults = match?.bestOf || 1;
+    // match, setMatchesResults, setParticipantStatsQuery가 모두 undefined일 때는 아무것도 하지 않음
+    if (
+      !match ||
+      !setMatchesResults ||
+      setParticipantStatsQuery === undefined
+    ) {
+      return;
+    }
 
-    if (setMatchesResults && setMatchesResults.setResults.length > 0 && match) {
+    // setMatchesResults.setResults가 비어있으면 임시 데이터로 처리
+    if (setMatchesResults.setResults.length === 0) {
+      const matchResults = match?.bestOf || 1;
+      const statPayload = match?.participants?.map((participant) =>
+        Array.from({ length: matchResults }).map(() => ({
+          matchSetResultId: 0,
+          rosterId: Number(participant.id),
+          name: participant.name,
+          payload: { gains: 0, losses: 0, penaltyShootout: 0 },
+        }))
+      );
+      setSetParticipantStats(statPayload ?? []);
+      return;
+    }
+
+    const matchResults = match.bestOf || 1;
+
+    // setParticipantStatsQuery.setResults가 비어있으면 0으로 초기화
+    if (
+      !setParticipantStatsQuery ||
+      setParticipantStatsQuery.setResults.length === 0
+    ) {
       const statPayload = match.participants?.map((participant) =>
         Array.from({ length: matchResults }).map((_, index) => ({
           matchSetResultId: setMatchesResults.setResults[index].id,
-          rosterId: participant.id,
+          rosterId: Number(participant.id),
           name: participant.name,
-          payload: {
-            gains: 0,
-            losses: 0,
-            penaltyShootout: "",
-          },
+          payload: { gains: 0, losses: 0, penaltyShootout: 0 },
         }))
       );
       setSetParticipantStats(statPayload ?? []);
-    } else {
-      // 임시 데이터 처리
-      const statPayload = match?.participants?.map((participant) =>
-        Array.from({ length: matchResults }).map((_) => ({
-          matchSetResultId: 0,
-          rosterId: participant.id,
-          name: participant.name,
-          payload: {
-            gains: 0,
-            losses: 0,
-            penaltyShootout: "",
-          },
-        }))
-      );
-
-      setSetParticipantStats(statPayload ?? []);
+      return;
     }
-  }, [match, setMatchesResults]);
+
+    // setParticipantStatsQuery가 있을 때
+    const setResults = setParticipantStatsQuery.setResults;
+    const statPayload = match.participants?.map((participant) =>
+      Array.from({ length: matchResults }).map((_, index) => {
+        const found = setResults[index].setParticipantStats.find(
+          (i) => i.participant.rosterId === Number(participant.id)
+        );
+        const {
+          gains = 0,
+          losses = 0,
+          penaltyShootout = 0,
+        } = (found?.statPayload as {
+          gains: number;
+          losses: number;
+          penaltyShootout: number;
+        }) || {};
+        return {
+          matchSetResultId: setMatchesResults.setResults[index].id,
+          rosterId: Number(participant.id),
+          name: participant.name,
+          payload: { gains, losses, penaltyShootout },
+        };
+      })
+    );
+    setSetParticipantStats(statPayload ?? []);
+  }, [match, setMatchesResults, setParticipantStatsQuery]);
 
   const handleChangeGains = (
     participantIdx: number,
     setIdx: number,
-    value: number
+    value: string
   ) => {
     const newSetParticipantStats = [...setParticipantStats];
-    newSetParticipantStats[participantIdx][setIdx].payload.gains = value;
+    // 빈 문자열이면 ""로, 아니면 숫자로 변환
+    newSetParticipantStats[participantIdx][setIdx].payload.gains =
+      value === "" ? "" : Number(value);
     setSetParticipantStats(newSetParticipantStats);
   };
 
@@ -115,18 +157,11 @@ const MatchResultDetailDrawer = ({
     setSetParticipantStats(newSetParticipantStats);
   };
 
-  const penaltyShootoutRegex = /^[승패]+$/;
-
   const handleChangePenaltyShootout = (
     participantIdx: number,
     setIdx: number,
-    value: string
+    value: number
   ) => {
-    if (!penaltyShootoutRegex.test(value) && value !== "") {
-      toast.error("승부차기 결과는 승 또는 패로 입력해주세요");
-      return;
-    }
-
     const newSetParticipantStats = [...setParticipantStats];
     newSetParticipantStats[participantIdx][setIdx].payload.penaltyShootout =
       value;
@@ -134,20 +169,19 @@ const MatchResultDetailDrawer = ({
   };
 
   const handleSave = () => {
+    const setParticipantStatsPayload: SetParticipantStatSaveDto[] =
+      setParticipantStats.flatMap((item) =>
+        item.map((i) => ({
+          matchSetResultId: i.matchSetResultId,
+          rosterId: i.rosterId,
+          statPayload: i.payload,
+        }))
+      );
+
     patchSetParticipantStatsMutate({
       matchId: Number(match?.id.split("-")[0]),
       saveSetParticipantStatsDto: {
-        setParticipantStats: setParticipantStats.flatMap((item) =>
-          item.map((result: any) => ({
-            matchSetResultId: result.matchSetResultId,
-            rosterId: result.rosterId,
-            statPayload: {
-              gains: result.gains,
-              losses: result.losses,
-              penaltyShootout: result.penaltyShootout,
-            },
-          }))
-        ),
+        setParticipantStats: setParticipantStatsPayload,
       },
     });
 
@@ -178,7 +212,7 @@ const MatchResultDetailDrawer = ({
                     <TableHeader>
                       <TableRow className="flex items-center">
                         <TableHead className="flex flex-1 justify-start items-center">
-                          {stat.map((result: any) => result.name)[0]}
+                          {stat.map((i: any) => i.name)[0]}
                         </TableHead>
                         <TableHead className="flex flex-1 justify-start items-center ">
                           득
@@ -192,68 +226,90 @@ const MatchResultDetailDrawer = ({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {stat.map((result: any, setIdx: number) => (
-                        <TableRow key={setIdx} className="flex items-center">
-                          <TableCell className="flex-1 text-sm">
-                            {`SET ${setIdx + 1}`}
-                          </TableCell>
-                          <TableCell className="flex-1 text-sm">
-                            <Input
-                              className="dark:bg-transparent hover:dark:bg-input/30 border-none"
-                              type="number"
-                              min={0}
-                              defaultValue={result.gains}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  (e.target as HTMLInputElement).blur();
-                                }
-                              }}
-                              onBlur={(e) => {
-                                handleChangeGains(
-                                  idx,
-                                  setIdx,
-                                  Number(e.target.value)
-                                );
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell className="flex-1 text-sm">
-                            <Input
-                              className="dark:bg-transparent hover:dark:bg-input/30 border-none"
-                              type="number"
-                              min={0}
-                              defaultValue={result.losses}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  (e.target as HTMLInputElement).blur();
-                                }
-                              }}
-                              onBlur={(e) => {
-                                handleChangeLosses(
-                                  idx,
-                                  setIdx,
-                                  Number(e.target.value)
-                                );
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell className="flex-1 text-sm">
-                            <Input
-                              className="dark:bg-transparent hover:dark:bg-input/30 border-none"
-                              type="text"
-                              defaultValue={result.penaltyShootout}
-                              placeholder="ex) 승/패"
-                              onBlur={(e) => {
-                                handleChangePenaltyShootout(
-                                  idx,
-                                  setIdx,
-                                  e.target.value
-                                );
-                              }}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {stat.map(
+                        (
+                          i: {
+                            matchSetResultId: number;
+                            rosterId: number;
+                            name: string;
+                            payload: {
+                              gains: number | "";
+                              losses: number | "";
+                              penaltyShootout: number | "";
+                            };
+                          },
+                          setIdx: number
+                        ) => (
+                          <TableRow key={setIdx} className="flex items-center">
+                            <TableCell className="flex-1 text-sm">
+                              {`SET ${setIdx + 1}`}
+                            </TableCell>
+                            <TableCell className="flex-1 text-sm">
+                              <Input
+                                className="dark:bg-transparent hover:dark:bg-input/30 border-none"
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                value={i.payload.gains}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    (e.target as HTMLInputElement).blur();
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  handleChangeGains(
+                                    idx,
+                                    setIdx,
+                                    e.target.value
+                                  );
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell className="flex-1 text-sm">
+                              <Input
+                                className="dark:bg-transparent hover:dark:bg-input/30 border-none"
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                value={i.payload.losses}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    (e.target as HTMLInputElement).blur();
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  handleChangeLosses(
+                                    idx,
+                                    setIdx,
+                                    Number(e.target.value)
+                                  );
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell className="flex-1 text-sm">
+                              <Input
+                                className="dark:bg-transparent hover:dark:bg-input/30 border-none"
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                value={i.payload.penaltyShootout}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    (e.target as HTMLInputElement).blur();
+                                  }
+                                }}
+                                onChange={(e) => {
+                                  handleChangePenaltyShootout(
+                                    idx,
+                                    setIdx,
+                                    Number(e.target.value)
+                                  );
+                                }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )
+                      )}
                     </TableBody>
                   </Table>
                 </div>
@@ -264,7 +320,9 @@ const MatchResultDetailDrawer = ({
             <Button
               size="lg"
               className="w-24 cursor-pointer"
-              onClick={() => onCloseDetailResultDialog?.(false)}
+              onClick={() => {
+                onCloseDetailResultDialog?.(false);
+              }}
             >
               취소
             </Button>
@@ -273,9 +331,7 @@ const MatchResultDetailDrawer = ({
                 size="lg"
                 variant="outline"
                 className="w-24 cursor-pointer"
-                onClick={() => {
-                  handleSave();
-                }}
+                onClick={handleSave}
               >
                 저장
               </Button>

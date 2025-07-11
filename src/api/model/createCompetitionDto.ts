@@ -30,8 +30,6 @@ export interface CreateCompetitionDto {
    * @nullable
    */
   competitionEndedAt?: string | null;
-  /** id of competition */
-  competitionId: string;
   /**
    * competition start date
    * @nullable

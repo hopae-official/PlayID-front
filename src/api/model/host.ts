@@ -6,16 +6,17 @@
  * OpenAPI spec version: 1.0
  */
 import type { Organization } from './organization';
+import type { User } from './user';
 import type { WorkspaceHost } from './workspaceHost';
 
-export interface Workspace {
+export interface Host {
   createdAt: string;
+  id: number;
+  organization?: Organization;
   /** @nullable */
-  deletedAt: string | null;
-  id: string;
-  name: string;
-  organization: Organization;
-  organizationId: string;
+  organizationId: string | null;
   updatedAt: string;
+  user: User;
+  userId: number;
   workspaceHosts: WorkspaceHost[];
 }

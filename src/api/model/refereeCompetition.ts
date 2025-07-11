@@ -5,23 +5,21 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
-import type { Bracket } from './bracket';
 import type { Competition } from './competition';
 import type { GameType } from './gameType';
+import type { Referee } from './referee';
 
-export interface Stage {
-  brackets: Bracket[];
+export interface RefereeCompetition {
   competition: Competition;
   competitionId: number;
   createdAt: string;
   /** @nullable */
   deletedAt: string | null;
-  gameType: GameType;
-  gameTypeId: number;
+  gameType?: GameType;
+  /** @nullable */
+  gameTypeId: number | null;
   id: number;
-  name: string;
-  stageOrder: number;
+  referee: Referee;
+  refereeId: number;
   updatedAt: string;
-  /** workspace id */
-  workspaceId: string;
 }

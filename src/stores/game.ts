@@ -1,11 +1,12 @@
+import type { GameType } from "@/api/model";
 import { create } from "zustand";
 
-interface GameIdStore {
-  gameId: string;
-  setGameId: (gameId: string) => void;
+interface SelectedGameStore {
+  selectedGame: GameType | null;
+  setSelectedGame: (game: GameType) => void;
 }
 
-export const useGameStore = create<GameIdStore>((set) => ({
-  gameId: "",
-  setGameId: (gameId) => set({ gameId }),
+export const useSelectedGameStore = create<SelectedGameStore>((set) => ({
+  selectedGame: null,
+  setSelectedGame: (game) => set({ selectedGame: game }),
 }));

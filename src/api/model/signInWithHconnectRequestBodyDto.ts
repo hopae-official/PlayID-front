@@ -6,9 +6,6 @@
  * OpenAPI spec version: 1.0
  */
 
-export interface SetResultSaveDto {
-  /** 세트 결과 ID */
-  id: number;
-  /** 승자 로스터 ID */
-  winnerRosterId?: number;
+export interface SignInWithHconnectRequestBodyDto {
+  code: string;
 }

@@ -7,7 +7,6 @@
  */
 import type { BracketFormatOptions } from './bracketFormatOptions';
 import type { BracketGroup } from './bracketGroup';
-import type { Stage } from './stage';
 
 export interface Bracket {
   createdAt: string;
@@ -17,7 +16,6 @@ export interface Bracket {
   formatOptions: BracketFormatOptions;
   groups: BracketGroup[];
   id: number;
-  stage: Stage;
   stageId: number;
   updatedAt: string;
   useGroups: boolean;
