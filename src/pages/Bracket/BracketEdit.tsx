@@ -108,7 +108,7 @@ export type Action =
   | { type: "DELETE_STAGE" }
   | { type: "SET_BRACKET_ID"; payload: number }
   | { type: "SET_BRACKET_GROUPS_ID"; payload: Group[] }
-  | { type: "SUFFLE_BRACKET" };
+  | { type: "SUFFLE_BRACKET"; payload: string };
 
 const stageReducer = (state: CustomStage, action: Action): CustomStage => {
   switch (action.type) {
@@ -394,7 +394,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
         bracket: { ...state.bracket, groups: action.payload },
       };
 
-    case "SUFFLE_BRACKET":
+    case "SUFFLE_BRACKET": {
       if (
         !state.bracket ||
         !state.bracket.groups ||
@@ -403,12 +403,18 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
         return state;
       }
 
-      const allocatedParticipants = state.bracket.groups[0].matches
-        ?.filter((match) => match.round === 1 && !match.isSettingNode)
-        ?.flatMap((match) => match.participants || []);
+      // 참가자 추출 함수
+      const getAllocatedParticipants = (groupId: string) =>
+        state.bracket?.groups
+          ?.find((group) => group.id === groupId)
+          ?.matches?.filter(
+            (match) => match.round === 1 && !match.isSettingNode
+          )
+          ?.flatMap((match) => match.participants || []);
 
-      const shuffleArray = (competitors: Competitor[]) => {
-        const arr = [...competitors];
+      // 셔플 함수 피셔-예이츠 셔플 알고리즘
+      const shuffleArray = <T,>(array: T[]): T[] => {
+        const arr = [...array];
         for (let i = arr.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
           [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -416,32 +422,68 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
         return arr;
       };
 
-      const shuffledParticipants = shuffleArray(allocatedParticipants || []);
-      let participantIdx = 0;
+      const groupId = action.payload;
+      const allocatedParticipants = getAllocatedParticipants(groupId) || [];
+      const shuffledParticipants = shuffleArray(allocatedParticipants);
 
-      return {
-        ...state,
-        bracket: {
-          ...state.bracket,
-          groups: state.bracket?.groups?.map((group) => ({
-            ...group,
-            matches: group.matches.map((match) => {
-              if (match.round !== 1 || match.isSettingNode) {
-                return match;
-              }
-              const participants = shuffledParticipants.slice(
-                participantIdx,
-                participantIdx + 2
-              );
-              participantIdx += 2;
-              return {
-                ...match,
-                participants,
-              };
-            }),
-          })),
-        },
-      };
+      if (state.bracket?.format === "SINGLE_ELIMINATION") {
+        let participantIdx = 0;
+        return {
+          ...state,
+          bracket: {
+            ...state.bracket,
+            groups: state.bracket.groups.map((group) =>
+              group.id === groupId
+                ? {
+                    ...group,
+                    matches: group.matches.map((match) => {
+                      if (match.round !== 1 || match.isSettingNode) {
+                        return match;
+                      }
+                      const participants = shuffledParticipants.slice(
+                        participantIdx,
+                        participantIdx + 2
+                      );
+                      participantIdx += 2;
+                      return {
+                        ...match,
+                        participants,
+                      };
+                    }),
+                  }
+                : group
+            ),
+          },
+        };
+      }
+
+      if (state.bracket?.format === "FREE_FOR_ALL") {
+        return {
+          ...state,
+          bracket: {
+            ...state.bracket,
+            groups: state.bracket.groups.map((group) =>
+              group.id === groupId
+                ? {
+                    ...group,
+                    matches: group.matches.map((match) => {
+                      if (match.isSettingNode) {
+                        return match;
+                      }
+                      return {
+                        ...match,
+                        participants: shuffledParticipants,
+                      };
+                    }),
+                  }
+                : group
+            ),
+          },
+        };
+      }
+
+      return state;
+    }
 
     default:
       return state;
@@ -893,7 +935,10 @@ const BracketEdit = () => {
   const handleClickControls = (menu: CustomControlMenuType) => {
     switch (menu) {
       case "SUFFLE":
-        dispatch({ type: "SUFFLE_BRACKET" });
+        dispatch({
+          type: "SUFFLE_BRACKET",
+          payload: selectedGroupId || "",
+        });
         break;
     }
   };
