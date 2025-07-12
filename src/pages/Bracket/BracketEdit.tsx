@@ -40,7 +40,6 @@ import type {
   MatchReferee,
   MatchSetParticipantStat,
   MatchSetResult,
-  Roster,
   Round,
   RoundReferee,
 } from "@/api/model";
@@ -568,51 +567,39 @@ const BracketEdit = () => {
   const createGameNodeMatches = (
     rounds: Round[],
     matches: Match[],
-    bracketGroups: BracketGroupOverviewResponseDto,
-    rosters: Roster[]
+    bracketGroups: BracketGroupOverviewResponseDto
   ) =>
     matches.map((match: Match) => {
+      // 참가자 변환 함수
+      const toParticipant = (participant: MatchParticipant) => ({
+        id: participant.rosterId.toString(),
+        name:
+          participant.roster.player?.organization ||
+          participant.roster.team?.name ||
+          "",
+      });
+
+      let participants: { id: string; name: string }[] = [];
+
+      if (match.matchParticipants.length > 0) {
+        participants = match.matchParticipants.map(toParticipant);
+        // 1명만 있을 때 빈 슬롯 추가
+        if (participants.length === 1) {
+          participants.push({ id: "", name: "" });
+        }
+      } else if (match.participantsCount && match.participantsCount > 0) {
+        participants = Array.from({ length: match.participantsCount }, () => ({
+          id: "",
+          name: "",
+        }));
+      }
+
       return {
         id: `${match.id}-game`,
         round:
           rounds.find((r: Round) => r.id === match.roundId)?.roundNumber || 0,
         name: match.name || "",
-        participants:
-          match.matchParticipants.length > 1
-            ? match.matchParticipants.map((participant: MatchParticipant) => ({
-                id: participant.rosterId.toString(),
-                name:
-                  rosters?.find(
-                    (roster: Roster) => roster.id === participant.rosterId
-                  )?.team?.name ||
-                  rosters?.find(
-                    (roster: Roster) => roster.id === participant.rosterId
-                  )?.player?.organization ||
-                  "",
-              }))
-            : match.matchParticipants.length === 1
-            ? [
-                ...match.matchParticipants.map(
-                  (participant: MatchParticipant) => ({
-                    id: participant.rosterId.toString(),
-                    name:
-                      rosters?.find(
-                        (roster: Roster) => roster.id === participant.rosterId
-                      )?.team?.name ||
-                      rosters?.find(
-                        (roster: Roster) => roster.id === participant.rosterId
-                      )?.player?.organization ||
-                      "",
-                  })
-                ),
-                { id: "", name: "" },
-              ]
-            : match.participantsCount && match.participantsCount > 0
-            ? Array.from({ length: match.participantsCount }, (_) => ({
-                id: "",
-                name: "",
-              }))
-            : [],
+        participants,
         prevMatchIds: bracketGroups?.matches
           .find((m: BracketGroupOverviewMatchDto) => m.id === match.id)
           ?.prevMatchIds?.map((id: number) => `${id}-game`),
@@ -650,14 +637,11 @@ const BracketEdit = () => {
                 );
                 return {
                   id: participant?.rosterId.toString(),
-                  name:
-                    rosters?.find(
-                      (roster: Roster) => roster.id === participant?.rosterId
-                    )?.team?.name ||
-                    rosters?.find(
-                      (roster: Roster) => roster.id === participant?.rosterId
-                    )?.player?.organization ||
-                    "",
+                  name: participant?.roster.player
+                    ? participant?.roster.player.organization || ""
+                    : participant?.roster.team
+                    ? participant?.roster.team?.name || ""
+                    : "",
                   point: stat.statPayload?.point as number,
                   ranking: stat.statPayload?.ranking as number,
                 };
@@ -681,8 +665,7 @@ const BracketEdit = () => {
     const gameNodeMatches: CustomMatch[] = createGameNodeMatches(
       rounds,
       matches,
-      bracketGroups,
-      rosters?.data || []
+      bracketGroups
     );
 
     const competitorCountSum = rounds
@@ -712,7 +695,7 @@ const BracketEdit = () => {
       },
       totalRounds: bracket.format === "FREE_FOR_ALL" ? rounds.length : 1,
     };
-  }, [bracket, bracketGroups, rosters, selectedGroupId]);
+  }, [bracket, bracketGroups, selectedGroupId]);
 
   const initialState: CustomStage = {
     ...(convertToReactFlowStage as CustomStage),
