@@ -534,13 +534,11 @@ const BracketEdit = () => {
   });
 
   const [selectedGroupId, setSelectedGroupId] = useState(
-    stageQuery?.brackets?.[0]?.groups?.[0]?.id.toString() || "0"
+    stageQuery?.brackets?.[0]?.groups?.[0]?.id.toString()
   );
 
   useEffect(() => {
-    setSelectedGroupId(
-      stageQuery?.brackets?.[0]?.groups?.[0]?.id.toString() || "0"
-    );
+    setSelectedGroupId(stageQuery?.brackets?.[0]?.groups?.[0]?.id.toString());
   }, [stageQuery]);
 
   const { data: bracketGroups } = getBracketGroups(Number(selectedGroupId));
@@ -810,7 +808,7 @@ const BracketEdit = () => {
       return result;
     };
 
-    if (stage.bracket?.groups?.length || 0 > 0) {
+    if (stage.bracket?.groups?.length || 0 > 1) {
       // 2명씩 나누기
       const chunkedCompetitors = chunkArray(competitors, 2);
 
@@ -818,7 +816,7 @@ const BracketEdit = () => {
         dispatch({
           type: "SET_ASSIGN_GROUPS_COMPETITORS",
           payload: (stage.bracket?.groups || []).map((group) =>
-            group.id === selectedGroupId.toString()
+            group.id === selectedGroupId
               ? {
                   ...group,
                   matches: (() => {
@@ -840,13 +838,17 @@ const BracketEdit = () => {
       } else if (stage.bracket?.format === "FREE_FOR_ALL") {
         dispatch({
           type: "SET_ASSIGN_GROUPS_COMPETITORS",
-          payload: (stage.bracket?.groups || []).map((group) => ({
-            ...group,
-            matches: group.matches.map((match) => ({
-              ...match,
-              participants: competitors,
-            })),
-          })),
+          payload: (stage.bracket?.groups || []).map((group) =>
+            group.id === selectedGroupId
+              ? {
+                  ...group,
+                  matches: group.matches.map((match) => ({
+                    ...match,
+                    participants: competitors,
+                  })),
+                }
+              : group
+          ),
         });
       }
     } else {
@@ -885,6 +887,7 @@ const BracketEdit = () => {
             : [],
       },
     });
+    setSelectedGroupId(undefined);
   };
 
   const handleClickControls = (menu: CustomControlMenuType) => {

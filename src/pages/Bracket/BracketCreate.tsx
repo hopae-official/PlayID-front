@@ -400,7 +400,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
           )
           ?.flatMap((match) => match.participants || []);
 
-      // 셔플 함수
+      // 셔플 함수 피셔-예이츠 셔플 알고리즘
       const shuffleArray = <T,>(array: T[]): T[] => {
         const arr = [...array];
         for (let i = arr.length - 1; i > 0; i--) {
@@ -678,7 +678,7 @@ const BracketCreate = () => {
       return result;
     };
 
-    if (stage.bracket?.groups?.length || 0 > 0) {
+    if (stage.bracket?.groups?.length || 0 > 1) {
       // 2명씩 나누기
       const chunkedCompetitors = chunkArray(competitors, 2);
 
@@ -708,13 +708,17 @@ const BracketCreate = () => {
       } else if (stage.bracket?.format === "FREE_FOR_ALL") {
         dispatch({
           type: "SET_ASSIGN_GROUPS_COMPETITORS",
-          payload: (stage.bracket?.groups || []).map((group) => ({
-            ...group,
-            matches: group.matches.map((match) => ({
-              ...match,
-              participants: competitors,
-            })),
-          })),
+          payload: (stage.bracket?.groups || []).map((group) =>
+            group.id === selectedGroupId
+              ? {
+                  ...group,
+                  matches: group.matches.map((match) => ({
+                    ...match,
+                    participants: competitors,
+                  })),
+                }
+              : group
+          ),
         });
       }
     } else {
@@ -752,6 +756,7 @@ const BracketCreate = () => {
             : [],
       },
     });
+    setSelectedGroupId(undefined);
   };
 
   const handleClickControls = (menu: CustomControlMenuType) => {
