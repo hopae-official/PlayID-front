@@ -36,6 +36,7 @@ import type {
 } from "@/api/model";
 import { useEffect } from "react";
 import { getAllRosters } from "@/queries/roster";
+import type { CustomControlMenuType } from "@/components/Bracket/CustomControls";
 
 export type Competitor = {
   id: string;
@@ -94,7 +95,8 @@ export type Action =
   | { type: "SET_ASSIGN_GROUPS_COMPETITORS"; payload: Group[] }
   | { type: "DELETE_STAGE" }
   | { type: "SET_BRACKET_ID"; payload: number }
-  | { type: "SET_BRACKET_GROUPS_ID"; payload: Group[] };
+  | { type: "SET_BRACKET_GROUPS_ID"; payload: Group[] }
+  | { type: "SUFFLE_BRACKET" };
 
 const stageReducer = (state: CustomStage, action: Action): CustomStage => {
   switch (action.type) {
@@ -381,6 +383,58 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
         bracket: { ...state.bracket, groups: action.payload },
       };
 
+    case "SUFFLE_BRACKET": {
+      if (
+        !state.bracket ||
+        !state.bracket.groups ||
+        state.bracket.groups[0].matches.length === 0
+      ) {
+        return state;
+      }
+
+      const allocatedParticipants = state.bracket.groups[0].matches
+        ?.filter((match) => match.round === 1 && !match.isSettingNode)
+        ?.flatMap((match) => match.participants || []);
+
+      const shuffleArray = (competitors: Competitor[]) => {
+        const arr = [...competitors];
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      };
+
+      if (state.bracket?.format === "SINGLE_ELIMINATION") {
+        const shuffledParticipants = shuffleArray(allocatedParticipants || []);
+        let participantIdx = 0;
+
+        return {
+          ...state,
+          bracket: {
+            ...state.bracket,
+            groups: state.bracket?.groups?.map((group) => ({
+              ...group,
+              matches: group.matches.map((match) => {
+                if (match.round !== 1 || match.isSettingNode) {
+                  return match;
+                }
+                const participants = shuffledParticipants.slice(
+                  participantIdx,
+                  participantIdx + 2
+                );
+                participantIdx += 2;
+                return {
+                  ...match,
+                  participants,
+                };
+              }),
+            })),
+          },
+        };
+      }
+    }
+
     default:
       return state;
   }
@@ -440,12 +494,10 @@ const checkMinimumRemainingTeams = (
 const BracketCreate = () => {
   const navigate = useNavigate();
   const params = useParams();
-
   const { isExpand } = useExpandStore();
   const stageNameRef = useRef<HTMLInputElement>(null);
   const [isCreateBracket, setIsCreateBracket] = useState<boolean>(false);
   const [stageNameError, setStageNameError] = useState<boolean>(false);
-
   const { data: stageQuery } = getStage(Number(params.id));
   const { data: stages } = getStages(
     stageQuery?.competitionId || 1,
@@ -663,6 +715,16 @@ const BracketCreate = () => {
       },
     });
   };
+
+  const handleClickControls = (menu: CustomControlMenuType) => {
+    switch (menu) {
+      case "SUFFLE":
+        dispatch({ type: "SUFFLE_BRACKET" });
+        break;
+    }
+  };
+
+  console.log("stage", stage);
 
   return (
     <div className="min-h-svh flex px-8 py-6 space-x-6">
@@ -1145,6 +1207,7 @@ const BracketCreate = () => {
           onChangeGroupTab={handleChangeGroupTab}
           onSaveBracket={handleSaveBracket}
           onDeleteBracket={handleDeleteBracket}
+          onClickControls={handleClickControls}
         />
       ) : (
         <div className="w-full bg-zinc-900 rounded-md shadow-sm flex items-center justify-center">

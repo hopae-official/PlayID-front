@@ -2106,7 +2106,7 @@ const BracketCreateEditBoard = ({
             />
           )}
           <CustomControls
-            menus={["ZOOM_IN", "ZOOM_OUT", "EXPAND"]}
+            menus={["SUFFLE", "ZOOM_IN", "ZOOM_OUT", "EXPAND"]}
             onClick={handleClickControls}
           />
         </ReactFlow>

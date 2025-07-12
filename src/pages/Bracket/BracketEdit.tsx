@@ -50,6 +50,7 @@ import dayjs from "dayjs";
 import { getBracket } from "@/queries/bracket";
 import { getBracketGroups } from "@/queries/bracketGroups";
 import { getStage, getStages } from "@/queries/stage";
+import type { CustomControlMenuType } from "@/components/Bracket/CustomControls";
 
 export type Competitor = {
   id: string;
@@ -108,7 +109,8 @@ export type Action =
   | { type: "SET_ASSIGN_GROUPS_COMPETITORS"; payload: Group[] }
   | { type: "DELETE_STAGE" }
   | { type: "SET_BRACKET_ID"; payload: number }
-  | { type: "SET_BRACKET_GROUPS_ID"; payload: Group[] };
+  | { type: "SET_BRACKET_GROUPS_ID"; payload: Group[] }
+  | { type: "SUFFLE_BRACKET" };
 
 const stageReducer = (state: CustomStage, action: Action): CustomStage => {
   switch (action.type) {
@@ -392,6 +394,55 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
       return {
         ...state,
         bracket: { ...state.bracket, groups: action.payload },
+      };
+
+    case "SUFFLE_BRACKET":
+      if (
+        !state.bracket ||
+        !state.bracket.groups ||
+        state.bracket.groups[0].matches.length === 0
+      ) {
+        return state;
+      }
+
+      const allocatedParticipants = state.bracket.groups[0].matches
+        ?.filter((match) => match.round === 1 && !match.isSettingNode)
+        ?.flatMap((match) => match.participants || []);
+
+      const shuffleArray = (competitors: Competitor[]) => {
+        const arr = [...competitors];
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        return arr;
+      };
+
+      const shuffledParticipants = shuffleArray(allocatedParticipants || []);
+      let participantIdx = 0;
+
+      return {
+        ...state,
+        bracket: {
+          ...state.bracket,
+          groups: state.bracket?.groups?.map((group) => ({
+            ...group,
+            matches: group.matches.map((match) => {
+              if (match.round !== 1 || match.isSettingNode) {
+                return match;
+              }
+              const participants = shuffledParticipants.slice(
+                participantIdx,
+                participantIdx + 2
+              );
+              participantIdx += 2;
+              return {
+                ...match,
+                participants,
+              };
+            }),
+          })),
+        },
       };
 
     default:
@@ -852,6 +903,14 @@ const BracketEdit = () => {
             : [],
       },
     });
+  };
+
+  const handleClickControls = (menu: CustomControlMenuType) => {
+    switch (menu) {
+      case "SUFFLE":
+        dispatch({ type: "SUFFLE_BRACKET" });
+        break;
+    }
   };
 
   return (
@@ -1331,6 +1390,7 @@ const BracketEdit = () => {
           onChangeGroupTab={handleChangeGroupTab}
           onSaveBracket={handleSaveBracket}
           onDeleteBracket={handleDeleteBracket}
+          onClickControls={handleClickControls}
         />
       ) : (
         <div className="w-full bg-zinc-900 rounded-md shadow-sm flex items-center justify-center">

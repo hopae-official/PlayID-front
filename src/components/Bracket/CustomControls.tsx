@@ -1,5 +1,13 @@
 import { Panel, useReactFlow } from "@xyflow/react";
-import { Plus, Minus, Expand, SquarePen, Trash2, Shrink } from "lucide-react";
+import {
+  Plus,
+  Minus,
+  Expand,
+  SquarePen,
+  Trash2,
+  Shrink,
+  Shuffle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useExpandStore } from "@/stores/expand";
 import {
@@ -12,8 +20,10 @@ import {
 } from "../ui/dialog";
 import { DialogClose, DialogTrigger } from "@radix-ui/react-dialog";
 import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export const CustomControlMenu = {
+  SUFFLE: "SUFFLE",
   ZOOM_IN: "ZOOM_IN",
   ZOOM_OUT: "ZOOM_OUT",
   EXPAND: "EXPAND",
@@ -57,42 +67,85 @@ const CustomControls = ({ menus, onClick }: CustomControlProps) => {
     setIsDeleteBracketOpen(false);
   };
 
+  const handleClickShuffle = () => {
+    onClick?.(CustomControlMenu.SUFFLE);
+  };
+
   return (
     <Panel position="top-right">
       <div className="flex items-center gap-2">
         <div className="flex border-1 border-[rgba(255, 255, 255, 0.10)] rounded-md">
+          {menus?.includes(CustomControlMenu.SUFFLE) && (
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="w-8 h-8 border-[rgba(255, 255, 255, 0.10)] rounded-none cursor-pointer"
+                  aria-label={CustomControlMenu.SUFFLE}
+                  onClick={handleClickShuffle}
+                >
+                  <Shuffle />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>대진표 섞기</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
           {menus?.includes(CustomControlMenu.ZOOM_IN) && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="w-8 h-8 border-[rgba(255, 255, 255, 0.10)] rounded-none cursor-pointer"
-              aria-label={CustomControlMenu.ZOOM_IN}
-              onClick={handleClickZoomIn}
-            >
-              <Plus />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="w-8 h-8 border-[rgba(255, 255, 255, 0.10)] rounded-none cursor-pointer"
+                  aria-label={CustomControlMenu.ZOOM_IN}
+                  onClick={handleClickZoomIn}
+                >
+                  <Plus />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>줌인</p>
+              </TooltipContent>
+            </Tooltip>
           )}
           {menus?.includes(CustomControlMenu.ZOOM_OUT) && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="w-8 h-8 border-r border-l border-[rgba(255, 255, 255, 0.10)] rounded-none cursor-pointer"
-              aria-label={CustomControlMenu.ZOOM_OUT}
-              onClick={handleClickZoomOut}
-            >
-              <Minus />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="w-8 h-8 border-r border-l border-[rgba(255, 255, 255, 0.10)] rounded-none cursor-pointer"
+                  aria-label={CustomControlMenu.ZOOM_OUT}
+                  onClick={handleClickZoomOut}
+                >
+                  <Minus />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>줌아웃</p>
+              </TooltipContent>
+            </Tooltip>
           )}
           {menus?.includes(CustomControlMenu.EXPAND) && (
-            <Button
-              size="icon"
-              variant="ghost"
-              className="w-8 h-8 rounded-none cursor-pointer"
-              aria-label={CustomControlMenu.EXPAND}
-              onClick={handleClickExpand}
-            >
-              {!isExpand ? <Expand /> : <Shrink />}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="w-8 h-8 rounded-none cursor-pointer"
+                  aria-label={CustomControlMenu.EXPAND}
+                  onClick={handleClickExpand}
+                >
+                  {!isExpand ? <Expand /> : <Shrink />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p>확대</p>
+              </TooltipContent>
+            </Tooltip>
           )}
         </div>
         <div className="flex border-1 border-[rgba(255, 255, 255, 0.10)] rounded-md">
