@@ -1388,130 +1388,147 @@ const MatchNode = (props: any) => {
 
       {stage.bracket?.format === "SINGLE_ELIMINATION" && (
         <div className="space-y-1">
-          {match.participants &&
-            match.participants.map(
-              (participant: { id: string; name: string }, idx: number) => (
+          {match.participants?.map(
+            (participant: { id: string; name: string }, idx: number) => {
+              const isWinner = match.matchWinnerRosterId === participant.id;
+              const isLastRound = match.round === lastRound;
+              const isThirdPlace = match.isThirdPlace;
+
+              // 배경/텍스트 색상
+              let baseClass = "";
+              if (match.matchWinnerRosterId) {
+                baseClass = isWinner
+                  ? "bg-zinc-950 text-white"
+                  : "bg-zinc-900 text-zinc-400";
+              } else {
+                baseClass = participant.name ? "bg-zinc-950" : "bg-zinc-900";
+              }
+
+              // 테두리 색상
+              let borderClass = "";
+              if (isLastRound && match.matchWinnerRosterId) {
+                if (isThirdPlace) {
+                  borderClass = isWinner ? "border border-yellow-700" : "";
+                } else {
+                  borderClass = isWinner
+                    ? "border border-yellow-200"
+                    : "border border-sky-200";
+                }
+              }
+
+              // 우승/순위 뱃지
+              let rankBadge = null;
+              if (
+                match.singleEliminationResult &&
+                match.singleEliminationResult.setResult &&
+                match.singleEliminationResult.setResult.length > 0 &&
+                isLastRound &&
+                match.matchWinnerRosterId
+              ) {
+                rankBadge = (
+                  <span
+                    className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
+                    ${
+                      isThirdPlace
+                        ? isWinner
+                          ? "bg-yellow-700 text-amber-950"
+                          : "bg-transparent"
+                        : isWinner
+                        ? "bg-yellow-300 text-yellow-700"
+                        : "bg-sky-300 text-sky-700"
+                    }`}
+                  >
+                    {isThirdPlace
+                      ? isWinner
+                        ? "3"
+                        : ""
+                      : isWinner
+                      ? "1"
+                      : "2"}
+                  </span>
+                );
+              }
+
+              // 승리 횟수
+              let winCount = "";
+              if (
+                match.singleEliminationResult &&
+                match.singleEliminationResult.setResult &&
+                match.singleEliminationResult.setResult.length > 0
+              ) {
+                winCount = match.matchWinnerRosterId
+                  ? match.singleEliminationResult.setResult
+                      .filter(
+                        (r: { winnerRosterId?: string }) =>
+                          r.winnerRosterId === participant.id
+                      )
+                      .length.toString()
+                  : "";
+              }
+
+              return (
                 <div
                   key={idx}
-                  className={`h-10 flex items-center justify-between p-2 rounded ${
-                    match.matchWinnerRosterId
-                      ? match.matchWinnerRosterId === participant.id
-                        ? "bg-zinc-950 text-white"
-                        : "bg-zinc-900 text-zinc-400"
-                      : participant.name
-                      ? "bg-zinc-950"
-                      : "bg-zinc-900"
-                  } ${
-                    match.round === lastRound &&
-                    match.matchWinnerRosterId &&
-                    (match.isThirdPlace
-                      ? match.matchWinnerRosterId === participant.id
-                        ? "border border-yellow-700"
-                        : ""
-                      : match.matchWinnerRosterId === participant.id
-                      ? "border border-yellow-200"
-                      : "border border-sky-200")
-                  }`}
+                  className={`h-10 flex items-center justify-between p-2 rounded ${baseClass} ${borderClass}`}
                 >
                   <span className="font-medium truncate block">
                     {participant.name || <span className="opacity-50"></span>}
                   </span>
-                  {match.singleEliminationResult &&
-                    match.singleEliminationResult.setResult &&
-                    match.singleEliminationResult.setResult.length > 0 && (
-                      <div className="flex items-center gap-4">
-                        {match.round === lastRound &&
-                          match.matchWinnerRosterId && (
-                            <span
-                              className={`text-xs w-4 h-4 flex items-center justify-center rounded-lg font-bold
-                          ${
-                            match.isThirdPlace
-                              ? match.matchWinnerRosterId === participant.id
-                                ? "bg-yellow-700 text-amber-950"
-                                : "bg-transparent"
-                              : match.matchWinnerRosterId === participant.id
-                              ? "bg-yellow-300 text-yellow-700"
-                              : "bg-sky-300 text-sky-700"
-                          }`}
-                            >
-                              {match.isThirdPlace
-                                ? match.matchWinnerRosterId === participant.id
-                                  ? "3"
-                                  : ""
-                                : match.matchWinnerRosterId === participant.id
-                                ? "1"
-                                : "2"}
-                            </span>
-                          )}
-                        <span
-                          className={`text-sm ${
-                            match.matchWinnerRosterId === participant.id
-                              ? "text-white"
-                              : "text-zinc-400"
-                          }`}
-                        >
-                          {match.matchWinnerRosterId &&
-                            match.singleEliminationResult.setResult.filter(
-                              (r: { winnerRosterId?: string }) =>
-                                r.winnerRosterId === participant.id
-                            ).length}
-                        </span>
-                      </div>
-                    )}
+                  {(rankBadge || winCount !== "") && (
+                    <div className="flex items-center gap-4">
+                      {rankBadge}
+                      <span
+                        className={`text-sm ${
+                          isWinner ? "text-white" : "text-zinc-400"
+                        }`}
+                      >
+                        {winCount}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )
-            )}
+              );
+            }
+          )}
         </div>
       )}
 
       {stage.bracket?.format === "FREE_FOR_ALL" && (
         <div className="space-y-1">
-          {match.freeForAllResult &&
-          match.freeForAllResult.setResult &&
-          match.freeForAllResult.setResult.length > 2
-            ? match.freeForAllResult.setResult.map(
-                (
-                  participant: { id?: string; name?: string; point?: number },
-                  idx: number
-                ) => (
-                  <div
-                    key={participant.id ?? idx}
-                    className="h-10 flex items-center justify-between p-2 rounded bg-zinc-950"
-                  >
-                    <span className="font-medium">
-                      {participant.name || <span className="opacity-50"></span>}
-                    </span>
+          {(match.participants ?? []).map(
+            (participant: { id: string; name: string }, idx: number) => {
+              const point =
+                match.freeForAllResult?.setResult?.find?.(
+                  (r: { id?: string }) => r.id === participant.id
+                )?.point ?? "";
+
+              const baseClass = participant.name
+                ? "bg-zinc-950"
+                : "bg-zinc-900";
+
+              const showPoint =
+                !!match.freeForAllResult?.setResult?.length &&
+                match.freeForAllResult.setResult.every(
+                  (result) => result.ranking !== 0
+                );
+
+              return (
+                <div
+                  key={idx}
+                  className={`h-10 flex items-center justify-between p-2 rounded ${baseClass}`}
+                >
+                  <span className="font-medium">
+                    {participant.name || <span className="opacity-50"></span>}
+                  </span>
+                  {showPoint && (
                     <div className="flex items-center gap-4">
-                      <span className="text-sm">{participant.point ?? ""}</span>
+                      <span className="text-sm">{point}</span>
                     </div>
-                  </div>
-                )
-              )
-            : (match.participants ?? []).map(
-                (participant: { id: string; name: string }, idx: number) => {
-                  const point =
-                    match.freeForAllResult?.setResult?.find?.(
-                      (r: { id?: string }) => r.id === participant.id
-                    )?.point ?? "";
-                  return (
-                    <div
-                      key={idx}
-                      className={`h-10 flex items-center justify-between p-2 rounded ${
-                        participant.name ? "bg-zinc-950" : "bg-zinc-900"
-                      }`}
-                    >
-                      <span className="font-medium">
-                        {participant.name || (
-                          <span className="opacity-50"></span>
-                        )}
-                      </span>
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm">{point}</span>
-                      </div>
-                    </div>
-                  );
-                }
-              )}
+                  )}
+                </div>
+              );
+            }
+          )}
         </div>
       )}
 
@@ -1690,7 +1707,7 @@ const BracketShowingBoard = ({
   const suppressEdit =
     boardType === "SHOW" &&
     (groups.some((group) =>
-      group.matches.some((match) => match.winnerRosterId)
+      group.matches.some((match) => match.matchWinnerRosterId)
     ) ||
       groups.some((group) =>
         group.matches.some((match: CustomMatch) =>

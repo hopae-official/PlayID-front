@@ -7,9 +7,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { v4 as uuidv4 } from "uuid";
 import { Input } from "@/components/ui/input";
-import BracketCreateEditBoard, {
-  type CustomMatch,
-} from "./BracketCreateEditBoard";
+import BracketCreateEditBoard from "./BracketCreateEditBoard";
 import {
   Dialog,
   DialogClose,
@@ -50,6 +48,7 @@ import { getBracket } from "@/queries/bracket";
 import { getBracketGroups } from "@/queries/bracketGroups";
 import { getStage, getStages } from "@/queries/stage";
 import type { CustomControlMenuType } from "@/components/Bracket/CustomControls";
+import type { CustomMatch } from "./BracketShowingBoard";
 
 export type Competitor = {
   id: string;

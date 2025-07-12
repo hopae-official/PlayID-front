@@ -7,9 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { v4 as uuidv4 } from "uuid";
 import { Input } from "@/components/ui/input";
-import BracketCreateEditBoard, {
-  type CustomMatch,
-} from "./BracketCreateEditBoard";
+import BracketCreateEditBoard from "./BracketCreateEditBoard";
 import {
   Dialog,
   DialogClose,
@@ -37,6 +35,7 @@ import type {
 import { useEffect } from "react";
 import { getAllRosters } from "@/queries/roster";
 import type { CustomControlMenuType } from "@/components/Bracket/CustomControls";
+import type { CustomMatch } from "./BracketShowingBoard";
 
 export type Competitor = {
   id: string;
@@ -433,6 +432,8 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
           },
         };
       }
+
+      return state;
     }
 
     default:
@@ -723,8 +724,6 @@ const BracketCreate = () => {
         break;
     }
   };
-
-  console.log("stage", stage);
 
   return (
     <div className="min-h-svh flex px-8 py-6 space-x-6">
