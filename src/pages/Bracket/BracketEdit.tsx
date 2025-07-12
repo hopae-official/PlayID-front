@@ -568,7 +568,7 @@ const BracketEdit = () => {
     rounds: Round[],
     matches: Match[],
     bracketGroups: BracketGroupOverviewResponseDto
-  ) =>
+  ): CustomMatch[] =>
     matches.map((match: Match) => {
       // 참가자 변환 함수
       const toParticipant = (participant: MatchParticipant) => ({
@@ -611,7 +611,7 @@ const BracketEdit = () => {
           ref.refereeId.toString()
         ),
         isSettingNode: false,
-        winnerRosterId: match.matchParticipants
+        matchWinnerRosterId: match.matchParticipants
           .find((p: MatchParticipant) => p.isWinner)
           ?.rosterId?.toString(),
         isThirdPlace: match.name === "3,4위전",
