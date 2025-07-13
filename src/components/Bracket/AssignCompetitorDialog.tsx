@@ -91,7 +91,13 @@ const getColumns = (
                 setCompetitors([]);
               } else {
                 const newRowSelection: Record<string, boolean> = {};
-                const selectedRows = table.getRowModel().rows.slice(0, place);
+                const selectedRows = table
+                  .getRowModel()
+                  .rows.filter(
+                    (row: any) =>
+                      !selectedRosterIds.includes(row.original.rosterId)
+                  )
+                  .slice(0, place);
                 (selectedRows as any[]).forEach((row: any) => {
                   newRowSelection[row.id] = true;
                 });
@@ -296,10 +302,17 @@ const AssignCompetitorDialog = ({
         const participants = rounds[0].matches.flatMap(
           (m) => m.matchParticipants
         );
+
         const rankingMap: Record<string, number> = {};
         let currentRank = 1;
+
+        const finalRoundParticipants = rounds[
+          rounds.length - 1
+        ].matches.flatMap((m) => m.matchParticipants);
+
         for (let i = rounds.length - 1; i >= 0; i--) {
           const matches = rounds[i].matches;
+
           if (i === rounds.length - 1) {
             matches.forEach((match, matchIdx) =>
               match.matchParticipants?.forEach((p) => {
@@ -318,19 +331,26 @@ const AssignCompetitorDialog = ({
           } else {
             const losers = matches.flatMap((m) =>
               (m.matchParticipants ?? [])
-                .filter((p) => !p.isWinner)
+                .filter(
+                  (p) =>
+                    !p.isWinner &&
+                    !finalRoundParticipants.some(
+                      (fp) => fp.rosterId === p.rosterId
+                    )
+                )
                 .map((p) => String(p.rosterId))
             );
             losers.forEach((rosterId) => (rankingMap[rosterId] = currentRank));
             currentRank += losers.length;
           }
         }
+
         return participants
           .map((roster) => ({
             rosterId: String(roster.rosterId),
             name:
               roster.roster.team?.name ||
-              roster.roster.player?.organization ||
+              roster.roster.player?.user?.name ||
               "",
             gameId: roster.roster.player?.gameId,
             ranking: rankingMap[String(roster.rosterId)],
