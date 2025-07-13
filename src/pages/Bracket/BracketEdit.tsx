@@ -613,7 +613,7 @@ const BracketEdit = () => {
       const toParticipant = (participant: MatchParticipant) => ({
         id: participant.rosterId.toString(),
         name:
-          participant.roster.player?.organization ||
+          participant.roster.player?.user?.name ||
           participant.roster.team?.name ||
           "",
       });
@@ -677,7 +677,7 @@ const BracketEdit = () => {
                 return {
                   id: participant?.rosterId.toString(),
                   name: participant?.roster.player
-                    ? participant?.roster.player.organization || ""
+                    ? participant?.roster.player.user?.name || ""
                     : participant?.roster.team
                     ? participant?.roster.team?.name || ""
                     : "",
@@ -698,15 +698,7 @@ const BracketEdit = () => {
       bracket.groups.find((group) => group.id === Number(selectedGroupId))
         ?.rounds || [];
 
-    const matches = rounds.flatMap((round: Round) => round.matches);
-
-    const settingNodeMatches: CustomMatch[] = createSettingNodeMatches(rounds);
-    const gameNodeMatches: CustomMatch[] = createGameNodeMatches(
-      rounds,
-      matches,
-      bracketGroups
-    );
-
+    //참가자 배정 없이 대진표 만들 시 참가자 수 만큼 임의의 참가자 만들어줘야 수정 시 재배정 가능
     const competitorCountSum = rounds
       .find((round) => round.roundNumber === 1)
       ?.matches.reduce((acc, match) => acc + (match.participantsCount || 0), 0);
@@ -714,34 +706,50 @@ const BracketEdit = () => {
     return {
       id: stageQuery?.id.toString(),
       name: stageQuery?.name,
-      competitors: Array.from({ length: competitorCountSum || 0 }, (_) => ({
-        id: uuidv4(),
-        name: "",
-      })),
       bracket: {
         id: bracket.id,
         format: bracket.format as CreateBracketDtoFormat,
         hasThirdPlaceMatch: !!bracket.formatOptions?.hasThirdPlaceMatch,
-        groups: bracket.groups.map((group: BracketGroup) => ({
-          id: group.id.toString(),
-          name: group.name,
-          competitors: Array.from({ length: competitorCountSum || 0 }, (_) => ({
-            id: uuidv4(),
-            name: "",
-          })),
-          matches: [...settingNodeMatches, ...gameNodeMatches],
-        })),
+        groups: bracket.groups.map((group: BracketGroup) => {
+          const rounds = group.rounds || [];
+          const matches = rounds.flatMap((round: Round) => round.matches);
+          const settingNodeMatches: CustomMatch[] =
+            createSettingNodeMatches(rounds);
+          const gameNodeMatches: CustomMatch[] = createGameNodeMatches(
+            rounds,
+            matches,
+            bracketGroups
+          );
+
+          return {
+            id: group.id.toString(),
+            name: group.name,
+            competitors:
+              group.participants && group.participants.length > 0
+                ? group.participants.map((participant) => ({
+                    id: participant.id.toString(),
+                    name:
+                      participant.roster.team?.name ||
+                      participant.roster.player?.user?.name ||
+                      "",
+                  }))
+                : Array.from({ length: competitorCountSum || 0 }, (_) => ({
+                    id: uuidv4(),
+                    name: "",
+                  })),
+            matches: [...settingNodeMatches, ...gameNodeMatches],
+          };
+        }),
       },
       totalRounds: bracket.format === "FREE_FOR_ALL" ? rounds.length : 1,
     };
-  }, [bracket, bracketGroups, selectedGroupId]);
+  }, [bracket, bracketGroups]);
 
   const initialState: CustomStage = {
     ...(convertToReactFlowStage as CustomStage),
   };
 
   const [stage, dispatch] = useReducer(stageReducer, initialState);
-
   const [isFinishUpdate, setIsFinishUpdate] = useState<boolean>(
     isEdit ? false : true
   );
@@ -751,21 +759,6 @@ const BracketEdit = () => {
     isSuccess,
     isError,
   } = createBracket();
-
-  // useEffect(() => {
-  //   if (rosters && rosters.data && rosters.data.length > 0) {
-  //     dispatch({
-  //       type: "SET_COMPETITORS_COUNT",
-  //       payload: {
-  //         count: rosters.data.length,
-  //         rosters: rosters.data.map((roster) => ({
-  //           id: roster.id.toString(),
-  //           name: roster.team?.name || "",
-  //         })),
-  //       },
-  //     });
-  //   }
-  // }, [rosters]);
 
   useEffect(() => {
     if (isSuccess) {
@@ -1399,7 +1392,7 @@ const BracketEdit = () => {
                           }
                         : {
                             rosterId: roster.id.toString(),
-                            name: roster.player?.organization || "",
+                            name: roster.player?.user?.name || "",
                             gameId: roster.player?.gameId || "",
                             isTeam: false,
                           }

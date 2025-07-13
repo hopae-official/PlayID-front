@@ -27,7 +27,6 @@ import { deleteBracket, getBracket } from "@/queries/bracket";
 import { toast } from "sonner";
 import { getBracketGroups } from "@/queries/bracketGroups";
 import dayjs from "dayjs";
-import { getAllRosters } from "@/queries/roster";
 import BracketShowingBoard from "./BracketShowingBoard";
 import { useExpandStore } from "@/stores/expand";
 import {
@@ -83,11 +82,6 @@ const BracketStage = ({
     isError: isDeleteBracketError,
   } = deleteBracket(true);
 
-  const { data: rosters, isError: isRostersError } = getAllRosters({
-    gameTypeId: Number(game.id),
-    limit: 1000,
-  });
-
   const [originalStages, setOriginalStages] = useState<Stage[]>(stages);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -110,7 +104,6 @@ const BracketStage = ({
     setOriginalStages(stages);
   }, [stages]);
 
-  //TODO 이 코드로 인해 결과값 입력시 맨 처음 조로 focus 개선해야함
   useEffect(() => {
     setSelectedGroupId(bracket?.groups?.[0]?.id || 0);
     localStorage.setItem(
@@ -142,18 +135,12 @@ const BracketStage = ({
       toast.error("그룹을 찾을 수 없습니다.");
       return;
     }
-
-    if (isRostersError) {
-      toast.error("로스터를 찾을 수 없습니다.");
-      return;
-    }
   }, [
     isStageError,
     isBracketError,
     isBracketGroupsError,
     isDeleteBracketSuccess,
     isDeleteBracketError,
-    isRostersError,
   ]);
 
   const handleStageChange = (
@@ -218,7 +205,7 @@ const BracketStage = ({
       const toParticipant = (participant: MatchParticipant) => ({
         id: participant.rosterId.toString(),
         name:
-          participant.roster.player?.organization ||
+          participant.roster.player?.user?.name ||
           participant.roster.team?.name ||
           "",
       });
@@ -282,7 +269,7 @@ const BracketStage = ({
                 return {
                   id: participant?.rosterId.toString(),
                   name: participant?.roster.player
-                    ? participant?.roster.player.organization || ""
+                    ? participant?.roster.player.user.name || ""
                     : participant?.roster.team
                     ? participant?.roster.team?.name || ""
                     : "",
@@ -299,36 +286,40 @@ const BracketStage = ({
   const convertToReactFlowStage = useMemo(() => {
     if (!bracket || !bracketGroups) return;
 
-    const rounds =
-      bracket.groups.find((group) => group.id === Number(selectedGroupId))
-        ?.rounds || [];
-
-    const matches = rounds.flatMap((round: Round) => round.matches);
-
-    const settingNodeMatches: CustomMatch[] = createSettingNodeMatches(rounds);
-    const gameNodeMatches: CustomMatch[] = createGameNodeMatches(
-      rounds,
-      matches,
-      bracketGroups
-    );
-
     return {
       id: selectedStage ? selectedStage.id.toString() : stages[0].id.toString(),
       name: selectedStage ? selectedStage.name : stages[0].name,
-      competitors: [],
       bracket: {
         id: bracket.id,
         format: bracket.format as CreateBracketDtoFormat,
         hasThirdPlaceMatch: !!bracket.formatOptions?.hasThirdPlaceMatch,
-        groups: bracket.groups.map((group: BracketGroup) => ({
-          id: group.id.toString(),
-          name: group.name,
-          competitors: [],
-          matches: [...settingNodeMatches, ...gameNodeMatches],
-        })),
+        groups: bracket.groups.map((group: BracketGroup) => {
+          const rounds = group.rounds || [];
+          const matches = rounds.flatMap((round: Round) => round.matches);
+          const settingNodeMatches: CustomMatch[] =
+            createSettingNodeMatches(rounds);
+          const gameNodeMatches: CustomMatch[] = createGameNodeMatches(
+            rounds,
+            matches,
+            bracketGroups
+          );
+
+          return {
+            id: group.id.toString(),
+            name: group.name,
+            competitors: group.participants?.map((participant) => ({
+              id: participant.id.toString(),
+              name:
+                participant.roster.team?.name ||
+                participant.roster.player?.user?.name ||
+                "",
+            })),
+            matches: [...settingNodeMatches, ...gameNodeMatches],
+          };
+        }),
       },
     };
-  }, [bracket, bracketGroups, rosters, selectedGroupId]);
+  }, [bracket, bracketGroups]);
 
   const handleAddStage = () => {
     onAddStage?.();
@@ -360,16 +351,18 @@ const BracketStage = ({
     }
   };
 
-  const suppressEdit =
-    !location.pathname.includes("result") &&
-    (convertToReactFlowStage?.bracket?.groups?.some((group) =>
-      group.matches.some((match) => match.matchWinnerRosterId)
-    ) ||
-      convertToReactFlowStage?.bracket?.groups?.some((group) =>
-        group.matches.some((match: CustomMatch) =>
-          match.freeForAllResult?.setResult?.some((result) => result.point)
-        )
-      ));
+  // const suppressEdit =
+  //   !location.pathname.includes("result") &&
+  //   (convertToReactFlowStage?.bracket?.groups?.some((group) =>
+  //     group.matches.some((match) => match.matchWinnerRosterId)
+  //   ) ||
+  //     convertToReactFlowStage?.bracket?.groups?.some((group) =>
+  //       group.matches.some((match: CustomMatch) =>
+  //         match.freeForAllResult?.setResult?.some((result) => result.point)
+  //       )
+  //     ));
+
+  const suppressEdit = false;
 
   return (
     <div className="flex h-full flex-col gap-4">

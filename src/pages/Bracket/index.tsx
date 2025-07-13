@@ -61,8 +61,6 @@ const Bracket = () => {
     }
   }, [competitions]);
 
-  console.log("selectedGame", selectedGame);
-
   useEffect(() => {
     if (!stageDatas) return;
 

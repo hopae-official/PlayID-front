@@ -1231,7 +1231,7 @@ const BracketCreate = () => {
                           }
                         : {
                             rosterId: roster.id.toString(),
-                            name: roster.player?.organization || "",
+                            name: roster.player?.user?.name || "",
                             gameId: roster.player?.gameId || "",
                             isTeam: false,
                           }
