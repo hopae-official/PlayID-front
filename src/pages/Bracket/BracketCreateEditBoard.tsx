@@ -63,6 +63,7 @@ import { updateRound } from "@/queries/round";
 import { useNavigate } from "react-router-dom";
 import { useSelectedCompetitionStore } from "@/stores/competition";
 import type { CustomMatch } from "./BracketShowingBoard";
+import DownloadButton from "@/components/Bracket/DownloadButton";
 
 export type MatchSetting = {
   round: number;
@@ -1153,6 +1154,12 @@ const MatchNode = (props: any) => {
     return groupBy(matches, (m: CustomMatch) => m.round);
   }, [matches]);
 
+  const lastRound = useMemo(() => {
+    const rounds = matches.map((m) => m.round);
+    const maxRound = Math.max(...rounds);
+    return maxRound;
+  }, [matches]);
+
   const getIsDifferentSetType = useCallback(
     (match: CustomMatch) => {
       const round = match.round;
@@ -1405,12 +1412,6 @@ const MatchNode = (props: any) => {
       </DialogFooter>
     </DialogContent>
   );
-
-  const lastRound = useMemo(() => {
-    const rounds = matches.map((m) => m.round);
-    const maxRound = Math.max(...rounds);
-    return maxRound;
-  }, [matches]);
 
   if (match.isSettingNode) {
     return (
@@ -2111,6 +2112,7 @@ const BracketCreateEditBoard = ({
             menus={["SUFFLE", "ZOOM_IN", "ZOOM_OUT", "EXPAND"]}
             onClick={handleClickControls}
           />
+          <DownloadButton />
         </ReactFlow>
       </div>
       {!isExpand && (
