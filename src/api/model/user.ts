@@ -5,6 +5,7 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
+import type { Player } from './player';
 import type { Referee } from './referee';
 
 export interface User {
@@ -22,6 +23,8 @@ export interface User {
   name: string;
   needCheck?: boolean;
   phoneNumber: string;
+  /** Players */
+  players: Player[];
   pushToken?: string;
   referee?: Referee;
   role: string;

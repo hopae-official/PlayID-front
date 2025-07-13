@@ -6,6 +6,7 @@
  * OpenAPI spec version: 1.0
  */
 import type { PlayerRoster } from './playerRoster';
+import type { User } from './user';
 
 export interface Player {
   competitionId: string;
@@ -29,5 +30,7 @@ export interface Player {
   /** @nullable */
   teamCode: string | null;
   updatedAt: string;
+  /** User */
+  user: User;
   userId: string;
 }

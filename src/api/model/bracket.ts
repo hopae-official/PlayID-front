@@ -5,8 +5,8 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
-import type { BracketFormatOptions } from './bracketFormatOptions';
-import type { BracketGroup } from './bracketGroup';
+import type { BracketFormatOptions } from "./bracketFormatOptions";
+import type { BracketGroup } from "./bracketGroup";
 
 export interface Bracket {
   createdAt: string;

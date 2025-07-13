@@ -5,6 +5,7 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
+import type { GetSetResultsResponseDtoResultSubmitUser } from './getSetResultsResponseDtoResultSubmitUser';
 import type { SetResultDto } from './setResultDto';
 
 export interface GetSetResultsResponseDto {
@@ -14,6 +15,8 @@ export interface GetSetResultsResponseDto {
   resultSubmittedAt?: string;
   /** 결과 제출자 ID */
   resultSubmitterId?: number;
+  /** @nullable */
+  resultSubmitUser: GetSetResultsResponseDtoResultSubmitUser;
   /** 세트 결과 목록 */
   setResults: SetResultDto[];
 }

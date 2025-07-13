@@ -5,17 +5,18 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
-import type { Bracket } from './bracket';
 import type { BracketGroupParticipant } from './bracketGroupParticipant';
 import type { Round } from './round';
 
 export interface BracketGroup {
-  bracket: Bracket;
+  /** 대진표 ID */
   bracketId: number;
   createdAt: string;
   /** @nullable */
   deletedAt: string | null;
+  /** 그룹(조) ID */
   id: number;
+  /** A조, B조 등 그룹명 */
   name: string;
   participants: BracketGroupParticipant[];
   rounds: Round[];

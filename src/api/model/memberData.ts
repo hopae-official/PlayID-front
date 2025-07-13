@@ -7,6 +7,7 @@
  */
 import type { MemberDataGameCard } from './memberDataGameCard';
 import type { MemberDataRoster } from './memberDataRoster';
+import type { User } from './user';
 
 export interface MemberData {
   competitionId: string;
@@ -31,5 +32,7 @@ export interface MemberData {
   /** @nullable */
   teamCode: string | null;
   updatedAt: string;
+  /** User */
+  user: User;
   userId: string;
 }
