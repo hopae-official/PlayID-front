@@ -194,7 +194,7 @@ const MatchResultDrawer = ({
       setMatchResultList(getInitialResultList(match, stage));
       const screenshotUrls = getScreenshotUrls(
         matchResults,
-        setMatchesResults ?? { setResults: [] }
+          (setMatchesResults ?? { setResults: [] }) as any
       );
       setScreenshots(screenshotUrls);
       setPreviewUrls(screenshotUrls);
