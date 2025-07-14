@@ -54,6 +54,7 @@
     "react-day-picker": "9.7.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "7.58.1",
+    "react-router-dom": "^7.6.3",
     "react-svg-pan-zoom": "3.13.1",
     "react-use": "17.6.0",
     "sonner": "2.0.5",
