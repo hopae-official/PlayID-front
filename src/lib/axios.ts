@@ -3,7 +3,7 @@ import { merge } from "lodash";
 import { getToken } from "../utils/token";
 
 export const instance = Axios.create({
-  baseURL: "https://studio-hopae.doslash.io",
+  baseURL: "https://esports-api.furo.one",
 });
 
 export const customInstance = <T>(
