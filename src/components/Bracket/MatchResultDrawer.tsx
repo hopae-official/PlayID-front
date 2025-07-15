@@ -44,6 +44,7 @@ import { toast } from "sonner";
 import type { GetSetResultsResponseDto } from "@/api/model";
 import { AxiosError } from "axios";
 import { useSelectedGameStore } from "@/stores/game";
+import dayjs from "dayjs";
 
 type SingleResult = { winnerRosterId?: string; screenshotUrl?: string };
 type FfaResult = {
@@ -194,7 +195,7 @@ const MatchResultDrawer = ({
       setMatchResultList(getInitialResultList(match, stage));
       const screenshotUrls = getScreenshotUrls(
         matchResults,
-          (setMatchesResults ?? { setResults: [] }) as any
+        setMatchesResults ?? { setResults: [], resultSubmitUser: null }
       );
       setScreenshots(screenshotUrls);
       setPreviewUrls(screenshotUrls);
@@ -840,6 +841,24 @@ const MatchResultDrawer = ({
             </div>
           ) : (
             <SetFfaResultInput result={matchResultList as FfaResult[]} />
+          )}
+          {setMatchesResults?.resultSubmitUser && (
+            <div className="w-full flex justify-between items-center mt-6">
+              <div className="w-full">
+                <Label className="mb-2">최종 결과 입력자</Label>
+                <span className="text-base">
+                  {setMatchesResults.resultSubmitUser.name}
+                </span>
+              </div>
+              <div className="w-full">
+                <Label className="mb-2">최종 경기 경과 제출</Label>
+                <span className="text-base">
+                  {dayjs(setMatchesResults.resultSubmitUser.createdAt).format(
+                    "YYYY-MM-DD H:m:ss A"
+                  )}
+                </span>
+              </div>
+            </div>
           )}
           <div className="w-full mt-6">
             <Label className="mb-2">특이사항</Label>
