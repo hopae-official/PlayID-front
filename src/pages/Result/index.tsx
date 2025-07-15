@@ -1,22 +1,15 @@
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
-import { TabsList } from "@radix-ui/react-tabs";
-import { useEffect, useState } from "react";
-import { useExpandStore } from "@/stores/expand";
+import {SidebarInset, SidebarTrigger} from "@/components/ui/sidebar";
+import {Separator} from "@/components/ui/separator";
+import {Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage,} from "@/components/ui/breadcrumb";
+import {Tabs, TabsContent, TabsTrigger} from "@/components/ui/tabs";
+import {TabsList} from "@radix-ui/react-tabs";
+import {useEffect, useState} from "react";
+import {useExpandStore} from "@/stores/expand";
 import BracketStage from "../Bracket/BracketStage";
-import { getCompetitionsMy } from "@/queries/competitions";
-import { createStage, deleteStage, getStages } from "@/queries/stage";
-import type { GameType, Stage } from "@/api/model";
-import { toast } from "sonner";
+import {useCompetition} from "@/contexts/CompetitionContext";
+import {createStage, deleteStage, getStages} from "@/queries/stage";
+import type {GameType, Stage} from "@/api/model";
+import CompetitionSelector from "@/components/CompetitionSelector";
 
 export type Sheet = {
   id: string;
@@ -30,38 +23,32 @@ export type Game = {
 };
 
 const Result = () => {
-  const { isExpand } = useExpandStore();
-  const { data: competitions = [], isError } = getCompetitionsMy();
+  const {isExpand} = useExpandStore();
+  const {selectedCompetition} = useCompetition();
   const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
-  const { data: stageDatas } = getStages(
-    competitions[0]?.id || 0,
+  const {data: stageDatas} = getStages(
+    selectedCompetition?.id || 0,
     selectedGame?.id || 0
   );
 
-  const { mutate: createStageMutate } = createStage();
-  const { mutate: deleteStageMutate } = deleteStage();
+  const {mutate: createStageMutate} = createStage();
+  const {mutate: deleteStageMutate} = deleteStage();
 
   const [stages, setStages] = useState<Stage[]>([]);
-  const games: GameType[] = competitions[0]?.gameTypes || [];
+  const games: GameType[] = selectedCompetition?.gameTypes || [];
 
   useEffect(() => {
-    if (isError) {
-      toast.error("대회 목록을 불러오는데 실패했습니다.");
+    if (selectedCompetition && selectedCompetition.gameTypes[0]) {
+      setSelectedGame(selectedCompetition.gameTypes[0]);
     }
-  }, [isError]);
-
-  useEffect(() => {
-    setSelectedGame(
-      competitions && competitions[0] ? competitions[0].gameTypes[0] : null
-    );
-  }, [competitions]);
+  }, [selectedCompetition]);
 
   useEffect(() => {
     if (!stageDatas) return;
 
     if (stageDatas?.length === 0) {
       createStageMutate({
-        competitionId: competitions[0]?.id || 0,
+        competitionId: selectedCompetition?.id || 0,
         gameTypeId: selectedGame?.id || 0,
         name: "스테이지 1",
       });
@@ -72,7 +59,7 @@ const Result = () => {
 
   const handleAddStage = () => {
     createStageMutate({
-      competitionId: competitions[0]?.id || 0,
+      competitionId: selectedCompetition?.id || 0,
       gameTypeId: selectedGame?.id || 0,
       name: `스테이지 ${stages.length + 1}`,
     });
@@ -115,21 +102,17 @@ const Result = () => {
         }`}
       >
         <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
+          <SidebarTrigger className="-ml-1"/>
           <Separator
             orientation="vertical"
             className="mr-2 data-[orientation=vertical]:h-4"
           />
           <Breadcrumb>
             <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="#">
-                  Building Your Application
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                <BreadcrumbPage>
+                  <CompetitionSelector/>
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

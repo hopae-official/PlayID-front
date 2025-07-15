@@ -11,12 +11,11 @@ import { TabsList } from "@radix-ui/react-tabs";
 import BracketStage from "./BracketStage";
 import { useEffect, useState } from "react";
 import { useExpandStore } from "@/stores/expand";
-import { getCompetitionsMy } from "@/queries/competitions";
-import { toast } from "sonner";
+import { useCompetition } from "@/contexts/CompetitionContext";
 import type { GameType, Stage } from "@/api/model";
 import { createStage, deleteStage, getStages } from "@/queries/stage";
 import { useSelectedGameStore } from "@/stores/game";
-import { useSelectedCompetitionStore } from "@/stores/competition";
+import CompetitionSelector from "@/components/CompetitionSelector";
 
 export type Sheet = {
   id: string;
@@ -32,41 +31,30 @@ export type Game = {
 const Bracket = () => {
   const { isExpand } = useExpandStore();
   const { selectedGame, setSelectedGame } = useSelectedGameStore();
-  const { setSelectedCompetition } = useSelectedCompetitionStore();
-  const { data: competitions = [], isError } = getCompetitionsMy();
+  const { selectedCompetition } = useCompetition();
   const { data: stageDatas } = getStages(
-    competitions[0]?.id || 0,
+    selectedCompetition?.id || 0,
     selectedGame?.id || 0
   );
   const { mutate: createStageMutate } = createStage();
   const { mutate: deleteStageMutate } = deleteStage();
   const [stages, setStages] = useState<Stage[]>([]);
-  const games: GameType[] = competitions[0]?.gameTypes || [];
+  const games: GameType[] = selectedCompetition?.gameTypes || [];
 
   useEffect(() => {
-    if (isError) {
-      toast.error("대회 목록을 불러오는데 실패했습니다.");
-    }
-  }, [isError]);
-
-  useEffect(() => {
-    if (competitions && competitions[0]) {
-      setSelectedCompetition(competitions[0]);
-    }
-
     if (selectedGame) return;
 
-    if (competitions && competitions[0] && competitions[0].gameTypes[0]) {
-      setSelectedGame(competitions[0].gameTypes[0]);
+    if (selectedCompetition && selectedCompetition.gameTypes[0]) {
+      setSelectedGame(selectedCompetition.gameTypes[0]);
     }
-  }, [competitions]);
+  }, [selectedCompetition]);
 
   useEffect(() => {
     if (!stageDatas) return;
 
     if (stageDatas?.length === 0) {
       createStageMutate({
-        competitionId: competitions[0]?.id || 0,
+        competitionId: selectedCompetition?.id || 0,
         gameTypeId: selectedGame?.id || 0,
         name: "스테이지 1",
       });
@@ -77,7 +65,7 @@ const Bracket = () => {
 
   const handleAddStage = () => {
     createStageMutate({
-      competitionId: competitions[0]?.id || 0,
+      competitionId: selectedCompetition?.id || 0,
       gameTypeId: selectedGame?.id || 0,
       name: `스테이지 ${stages.length + 1}`,
     });
@@ -104,7 +92,7 @@ const Bracket = () => {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbPage>
-                  {(competitions && competitions[0]?.title) || "대회 목록"}
+                  <CompetitionSelector />
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
