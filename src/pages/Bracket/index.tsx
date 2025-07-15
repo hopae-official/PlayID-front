@@ -15,6 +15,7 @@ import { useCompetition } from "@/contexts/CompetitionContext";
 import type { GameType, Stage } from "@/api/model";
 import { createStage, deleteStage, getStages } from "@/queries/stage";
 import { useSelectedGameStore } from "@/stores/game";
+import CompetitionSelector from "@/components/CompetitionSelector";
 
 export type Sheet = {
   id: string;
@@ -30,7 +31,7 @@ export type Game = {
 const Bracket = () => {
   const { isExpand } = useExpandStore();
   const { selectedGame, setSelectedGame } = useSelectedGameStore();
-  const { competitions, selectedCompetition } = useCompetition();
+  const { selectedCompetition } = useCompetition();
   const { data: stageDatas } = getStages(
     selectedCompetition?.id || 0,
     selectedGame?.id || 0
@@ -91,7 +92,7 @@ const Bracket = () => {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbPage>
-                  {selectedCompetition?.title || "대회 목록"}
+                  <CompetitionSelector />
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>

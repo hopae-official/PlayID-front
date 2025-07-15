@@ -1,21 +1,15 @@
-import { SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
-import { TabsList } from "@radix-ui/react-tabs";
-import { useEffect, useState } from "react";
-import { useExpandStore } from "@/stores/expand";
+import {SidebarInset, SidebarTrigger} from "@/components/ui/sidebar";
+import {Separator} from "@/components/ui/separator";
+import {Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage,} from "@/components/ui/breadcrumb";
+import {Tabs, TabsContent, TabsTrigger} from "@/components/ui/tabs";
+import {TabsList} from "@radix-ui/react-tabs";
+import {useEffect, useState} from "react";
+import {useExpandStore} from "@/stores/expand";
 import BracketStage from "../Bracket/BracketStage";
-import { useCompetition } from "@/contexts/CompetitionContext";
-import { createStage, deleteStage, getStages } from "@/queries/stage";
-import type { GameType, Stage } from "@/api/model";
+import {useCompetition} from "@/contexts/CompetitionContext";
+import {createStage, deleteStage, getStages} from "@/queries/stage";
+import type {GameType, Stage} from "@/api/model";
+import CompetitionSelector from "@/components/CompetitionSelector";
 
 export type Sheet = {
   id: string;
@@ -29,16 +23,16 @@ export type Game = {
 };
 
 const Result = () => {
-  const { isExpand } = useExpandStore();
-  const { competitions, selectedCompetition } = useCompetition();
+  const {isExpand} = useExpandStore();
+  const {selectedCompetition} = useCompetition();
   const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
-  const { data: stageDatas } = getStages(
+  const {data: stageDatas} = getStages(
     selectedCompetition?.id || 0,
     selectedGame?.id || 0
   );
 
-  const { mutate: createStageMutate } = createStage();
-  const { mutate: deleteStageMutate } = deleteStage();
+  const {mutate: createStageMutate} = createStage();
+  const {mutate: deleteStageMutate} = deleteStage();
 
   const [stages, setStages] = useState<Stage[]>([]);
   const games: GameType[] = selectedCompetition?.gameTypes || [];
@@ -108,7 +102,7 @@ const Result = () => {
         }`}
       >
         <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1" />
+          <SidebarTrigger className="-ml-1"/>
           <Separator
             orientation="vertical"
             className="mr-2 data-[orientation=vertical]:h-4"
@@ -117,7 +111,7 @@ const Result = () => {
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbPage>
-                  {selectedCompetition?.title || "대회 목록"}
+                  <CompetitionSelector/>
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
