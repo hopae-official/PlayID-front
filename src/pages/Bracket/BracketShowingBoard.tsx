@@ -1113,9 +1113,10 @@ const useFreeForAllBracketNodesEdges = (
             id: uuidv4(),
             round: Math.max(...Object.keys(rounds).map(Number)) + 1,
             name: "Total",
-            participants:
-              matches.filter((m) => !m.isSettingNode && !m.isThirdPlace)[0]
-                ?.participants || [],
+            participants: totalResult.map((result) => ({
+              id: result.id,
+              name: result.name,
+            })),
             freeForAllResult: {
               setResult: totalResult,
             },

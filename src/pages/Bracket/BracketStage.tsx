@@ -213,7 +213,21 @@ const BracketStage = ({
       let participants: { id: string; name: string }[] = [];
 
       if (match.matchParticipants.length > 0) {
-        participants = match.matchParticipants.map(toParticipant);
+        if (bracket?.format === "FREE_FOR_ALL") {
+          const freeForAllParticipantsWithRanking = match.matchParticipants
+            .map((participant) => ({
+              ...participant,
+              ranking: match.matchSetResults[0].matchSetParticipantStats.find(
+                (stat) => stat.matchParticipantId === Number(participant.id)
+              )?.statPayload?.ranking as number,
+            }))
+            .sort((a, b) => (a.ranking || 0) - (b.ranking || 0));
+
+          participants = freeForAllParticipantsWithRanking.map(toParticipant);
+        } else {
+          participants = match.matchParticipants.map(toParticipant);
+        }
+
         // 1명만 있을 때 빈 슬롯 추가
         if (participants.length === 1) {
           participants.push({ id: "", name: "" });
