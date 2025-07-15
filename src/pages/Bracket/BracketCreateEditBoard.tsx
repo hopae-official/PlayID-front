@@ -1,54 +1,36 @@
-import {
-  useEffect,
-  useMemo,
-  useState,
-  useCallback,
-  type Dispatch,
-} from "react";
-import type { Edge, Node } from "@xyflow/react";
-import { ReactFlow, Position, Handle } from "@xyflow/react";
+import {type Dispatch, useCallback, useEffect, useMemo, useState,} from "react";
+import type {Edge, Node} from "@xyflow/react";
+import {Handle, Position, ReactFlow} from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { v4 as uuidv4 } from "uuid";
-import { Button } from "@/components/ui/button";
-import { CalendarIcon, ChevronDownIcon, Settings, XIcon } from "lucide-react";
+import {v4 as uuidv4} from "uuid";
+import {Button} from "@/components/ui/button";
+import {CalendarIcon, ChevronDownIcon, Settings, XIcon} from "lucide-react";
 import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogTrigger,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { useForm } from "react-hook-form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "sonner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
-import type { Action, Group, CustomStage } from "./BracketCreate";
+import {Label} from "@/components/ui/label";
+import {Input} from "@/components/ui/input";
+import {Popover, PopoverContent, PopoverTrigger,} from "@/components/ui/popover";
+import {Calendar} from "@/components/ui/calendar";
+import {useForm} from "react-hook-form";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from "@/components/ui/select";
+import {toast} from "sonner";
+import {Tabs, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {Separator} from "@/components/ui/separator";
+import type {Action, CustomStage, Group} from "./BracketCreate";
 import GroupToggleButton from "@/components/Bracket/GroupToggleButton";
-import { groupBy } from "lodash";
+import {groupBy} from "lodash";
 import ThirdPlaceToggleButton from "@/components/Bracket/ThirdPlaceToggleButton";
-import CustomControls, {
-  type CustomControlMenuType,
-} from "@/components/Bracket/CustomControls";
-import { useExpandStore } from "@/stores/expand";
-import { getRefereesByCompetitionId } from "@/queries/refree";
+import CustomControls, {type CustomControlMenuType,} from "@/components/Bracket/CustomControls";
+import {useExpandStore} from "@/stores/expand";
+import {getRefereesByCompetitionId} from "@/queries/refree";
 import type {
   BracketStructureMatchDto,
   BracketStructureRoundDto,
@@ -58,11 +40,10 @@ import type {
   UpdateRoundDtoBestOf,
 } from "@/api/model";
 import dayjs from "dayjs";
-import { patchMatchParticipantsBulk, updateMatch } from "@/queries/match";
-import { updateRound } from "@/queries/round";
-import { useNavigate } from "react-router-dom";
-import { useSelectedCompetitionStore } from "@/stores/competition";
-import type { CustomMatch } from "./BracketShowingBoard";
+import {patchMatchParticipantsBulk, updateMatch} from "@/queries/match";
+import {updateRound} from "@/queries/round";
+import {useNavigate} from "react-router-dom";
+import type {CustomMatch} from "./BracketShowingBoard";
 import DownloadButton from "@/components/Bracket/DownloadButton";
 import {useCompetition} from "@/contexts/CompetitionContext.tsx";
 
@@ -116,7 +97,7 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
       name: `Match ${matchCount}`,
       round,
       participants: [
-        { id: participants[i * 2].id, name: participants[i * 2].name || "" },
+        {id: participants[i * 2].id, name: participants[i * 2].name || ""},
         {
           id: participants[i * 2 + 1].id,
           name: participants[i * 2 + 1].name || "",
@@ -135,14 +116,14 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           id: participants[participants.length - 1].id || "",
           name: participants[participants.length - 1].name || "",
         },
-        { id: "", name: "" },
+        {id: "", name: ""},
       ],
     });
     matchCount++;
   }
   allMatches.push(...round1Matches);
 
-  let contenders: CustomMatch[] = round1Matches.map((m) => ({ ...m }));
+  let contenders: CustomMatch[] = round1Matches.map((m) => ({...m}));
   round++;
 
   if (participants.length === 3 || participants.length === 4) {
@@ -151,8 +132,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
       name: "Final",
       round,
       participants: [
-        { id: "", name: "" },
-        { id: "", name: "" },
+        {id: "", name: ""},
+        {id: "", name: ""},
       ],
       prevMatchIds: [contenders[0].id, contenders[1].id],
     });
@@ -175,8 +156,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r2Playing[i * 2].id, r2Playing[i * 2 + 1].id],
         };
@@ -200,8 +181,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 1,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r3Playing[i * 2].id, r3Playing[i * 2 + 1].id],
         };
@@ -228,8 +209,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 2,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r4Playing[i * 2].id, r4Playing[i * 2 + 1].id],
         };
@@ -259,8 +240,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r2Playing[i * 2].id, r2Playing[i * 2 + 1].id],
         };
@@ -278,8 +259,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 1,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r3Contenders[i * 2].id, r3Contenders[i * 2 + 1].id],
         };
@@ -298,8 +279,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
         name: `Match ${matchCount}`,
         round: round + 2,
         participants: [
-          { id: "", name: "" },
-          { id: "", name: "" },
+          {id: "", name: ""},
+          {id: "", name: ""},
         ],
         prevMatchIds: [r3Matches[0].id, r3Matches[1].id],
       };
@@ -309,8 +290,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
         name: `Match ${matchCount}`,
         round: round + 2,
         participants: [
-          { id: "", name: "" },
-          { id: "", name: "" },
+          {id: "", name: ""},
+          {id: "", name: ""},
         ],
         prevMatchIds: [r3Matches[2].id, r3Matches[3].id],
       };
@@ -338,8 +319,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r2Playing[i * 2].id, r2Playing[i * 2 + 1].id],
         };
@@ -363,8 +344,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 1,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r3Playing[i * 2].id, r3Playing[i * 2 + 1].id],
         };
@@ -384,8 +365,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 2,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r4Playing[i * 2].id, r4Playing[i * 2 + 1].id],
         };
@@ -415,8 +396,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r2Playing[i * 2].id, r2Playing[i * 2 + 1].id],
         };
@@ -434,8 +415,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 1,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [r3Contenders[i * 2].id, r3Contenders[i * 2 + 1].id],
         };
@@ -453,8 +434,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
         name: `Match ${matchCount}`,
         round: round + 2,
         participants: [
-          { id: "", name: "" },
-          { id: "", name: "" },
+          {id: "", name: ""},
+          {id: "", name: ""},
         ],
         prevMatchIds: [r4Playing[0].id, r4Playing[1].id],
       };
@@ -482,8 +463,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [round2Playing[i * 2].id, round2Playing[i * 2 + 1].id],
         };
@@ -511,8 +492,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 1,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [round3Playing[i * 2].id, round3Playing[i * 2 + 1].id],
         };
@@ -530,8 +511,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
         name: `Match ${matchCount}`,
         round: round + 2,
         participants: [
-          { id: "", name: "" },
-          { id: "", name: "" },
+          {id: "", name: ""},
+          {id: "", name: ""},
         ],
         prevMatchIds: [finalFive[0].id, finalFive[1].id],
       };
@@ -565,8 +546,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [round2Playing[i * 2].id, round2Playing[i * 2 + 1].id],
         };
@@ -591,8 +572,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 1,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [round3Playing[i * 2].id, round3Playing[i * 2 + 1].id],
         };
@@ -621,8 +602,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [contenders[i * 2].id, contenders[i * 2 + 1].id],
         };
@@ -643,8 +624,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 1,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [round3Playing[i * 2].id, round3Playing[i * 2 + 1].id],
         };
@@ -675,8 +656,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [round2Playing[i * 2].id, round2Playing[i * 2 + 1].id],
         };
@@ -700,8 +681,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round: round + 1,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [round3Playing[i * 2].id, round3Playing[i * 2 + 1].id],
         };
@@ -731,8 +712,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [round2Playing[i * 2].id, round2Playing[i * 2 + 1].id],
         };
@@ -750,8 +731,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
         name: `Match ${matchCount}`,
         round: round + 1,
         participants: [
-          { id: "", name: "" },
-          { id: "", name: "" },
+          {id: "", name: ""},
+          {id: "", name: ""},
         ],
         prevMatchIds: [round3Contenders[0].id, round3Contenders[1].id],
       };
@@ -799,8 +780,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
           name: `Match ${matchCount}`,
           round,
           participants: [
-            { id: "", name: "" },
-            { id: "", name: "" },
+            {id: "", name: ""},
+            {id: "", name: ""},
           ],
           prevMatchIds: [playing[i * 2].id, playing[i * 2 + 1].id],
         };
@@ -840,8 +821,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
       name: `Semi-Final 1`,
       round: semiFinalRound,
       participants: [
-        { id: "", name: "" },
-        { id: "", name: "" },
+        {id: "", name: ""},
+        {id: "", name: ""},
       ],
       prevMatchIds: [contenders[0].id, contenders[1].id],
     };
@@ -850,8 +831,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
       name: `Semi-Final 2`,
       round: semiFinalRound,
       participants: [
-        { id: "", name: "" },
-        { id: "", name: "" },
+        {id: "", name: ""},
+        {id: "", name: ""},
       ],
       prevMatchIds: [contenders[2].id, contenders[3].id],
     };
@@ -866,8 +847,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
         name: `Semi-Final 1`,
         round: semiFinalRound,
         participants: [
-          { id: "", name: "" },
-          { id: "", name: "" },
+          {id: "", name: ""},
+          {id: "", name: ""},
         ],
         prevMatchIds: [contenders[0].id, contenders[1].id],
       };
@@ -877,8 +858,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
         name: `Semi-Final 2`,
         round: semiFinalRound,
         participants: [
-          { id: "", name: "" },
-          { id: "", name: "" },
+          {id: "", name: ""},
+          {id: "", name: ""},
         ],
         prevMatchIds: [contenders[2].id], // 부전승
       };
@@ -891,8 +872,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
         name: `Semi-Final 1`,
         round: semiFinalRound,
         participants: [
-          { id: "", name: "" },
-          { id: "", name: "" },
+          {id: "", name: ""},
+          {id: "", name: ""},
         ],
         prevMatchIds: [contenders[1].id, contenders[2].id], // 2,3번째 진출자가 준결승
       };
@@ -913,8 +894,8 @@ const generateSingleEliminationMatches = (group: Group): CustomMatch[] => {
       name: "Final",
       round: semiFinalRound + 1,
       participants: [
-        { id: "", name: "" },
-        { id: "", name: "" },
+        {id: "", name: ""},
+        {id: "", name: ""},
       ],
       prevMatchIds: [finalists[0].id, finalists[1].id],
     };
@@ -939,7 +920,7 @@ const generateFreeForAllMatches = (
       name: `Match ${i + 1}`,
       round: i + 1,
       bestOf: 1 as 1 | 3 | 5,
-      participants: participants.map(({ id, name }) => ({
+      participants: participants.map(({id, name}) => ({
         id,
         name: name || "",
       })),
@@ -1023,7 +1004,7 @@ const useSingleEliminationBracketNodesEdges = (matches: CustomMatch[]) => {
       id: match.id,
       type: "matchNode",
       data: match,
-      position: { x: (match.round - 1) * columnWidth * 1.5, y: 10 },
+      position: {x: (match.round - 1) * columnWidth * 1.5, y: 10},
       draggable: false,
     });
   });
@@ -1065,7 +1046,7 @@ const useSingleEliminationBracketNodesEdges = (matches: CustomMatch[]) => {
               source: prevId,
               target: match.id,
               type: "smoothstep",
-              style: { stroke: "#27272A", strokeWidth: 6 },
+              style: {stroke: "#27272A", strokeWidth: 6},
               sourceHandle: "source",
               targetHandle: "target",
             });
@@ -1074,7 +1055,7 @@ const useSingleEliminationBracketNodesEdges = (matches: CustomMatch[]) => {
     }
   });
 
-  return { nodes, edges };
+  return {nodes, edges};
 };
 
 const useFreeForAllBracketNodesEdges = (matches: CustomMatch[]) => {
@@ -1112,7 +1093,7 @@ const useFreeForAllBracketNodesEdges = (matches: CustomMatch[]) => {
     });
   });
 
-  return { nodes, edges: [] };
+  return {nodes, edges: []};
 };
 
 // 5. 커스텀 노드 컴포넌트
@@ -1134,7 +1115,7 @@ const MatchNode = (props: any) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
-  const { register, watch, setValue, handleSubmit, reset } =
+  const {register, watch, setValue, handleSubmit, reset} =
     useForm<MatchSetting>();
 
   useEffect(() => {
@@ -1178,8 +1159,8 @@ const MatchNode = (props: any) => {
       return setTypes[0] === 1
         ? "단판"
         : setTypes[0] === 3
-        ? "3판 2선승제"
-        : "5판 3선승제";
+          ? "3판 2선승제"
+          : "5판 3선승제";
     },
     [groupbyRooundMatches]
   );
@@ -1237,7 +1218,7 @@ const MatchNode = (props: any) => {
   };
 
   const handleFormSubmit = (data: MatchSetting) => {
-    onSubmit({ id: match.id || "", setting: data });
+    onSubmit({id: match.id || "", setting: data});
     setIsDialogOpen(false);
   };
 
@@ -1245,7 +1226,7 @@ const MatchNode = (props: any) => {
     <DialogContent className="sm:max-w-[425px]" showCloseButton={false}>
       <DialogHeader>
         <DialogTitle>{match.name}</DialogTitle>
-        <DialogDescription />
+        <DialogDescription/>
       </DialogHeader>
       <div className="grid gap-4">
         <div className="w-full flex justify-between items-center gap-4">
@@ -1262,11 +1243,11 @@ const MatchNode = (props: any) => {
                     watch("scheduledDate")?.toLocaleDateString()
                   ) : (
                     <div className="flex items-center gap-2 text-zinc-400">
-                      <CalendarIcon className="w-4 h-4" />
+                      <CalendarIcon className="w-4 h-4"/>
                       <span className="text-sm">일정선택</span>
                     </div>
                   )}
-                  <ChevronDownIcon />
+                  <ChevronDownIcon/>
                 </Button>
               </PopoverTrigger>
               <PopoverContent
@@ -1351,7 +1332,7 @@ const MatchNode = (props: any) => {
             onValueChange={handleChangeReferee}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="심판을 선택해주세요" />
+              <SelectValue placeholder="심판을 선택해주세요"/>
             </SelectTrigger>
             <SelectContent>
               {refereeData &&
@@ -1425,7 +1406,7 @@ const MatchNode = (props: any) => {
             >
               <div className="w-full flex justify-between items-center text-base font-bold">
                 <span>{match.name}</span>
-                <Settings className="w-4 h-4 text-zinc-400" />
+                <Settings className="w-4 h-4 text-zinc-400"/>
               </div>
               <div className="flex items-center gap-1 text-xs text-zinc-400">
                 <span>{getIsDifferentSetType(match)}</span>
@@ -1437,7 +1418,7 @@ const MatchNode = (props: any) => {
                 </div>
                 <span>{getIsDifferentDate(match)}</span>
               </div>
-              <Separator className="w-full mt-3 bg-zinc-700" />
+              <Separator className="w-full mt-3 bg-zinc-700"/>
             </Button>
           </DialogTrigger>
           {dialogContent}
@@ -1466,7 +1447,7 @@ const MatchNode = (props: any) => {
           >
             <div className="w-full flex justify-between items-center text-sm text-zinc-400">
               <span>{match.name}</span>
-              <Settings className="w-4 h-4 text-zinc-400" />
+              <Settings className="w-4 h-4 text-zinc-400"/>
             </div>
             <div className="flex items-center gap-1 text-xs text-zinc-400">
               <span>
@@ -1474,8 +1455,8 @@ const MatchNode = (props: any) => {
                   ? match.bestOf === 1
                     ? "단판"
                     : match.bestOf === 3
-                    ? "3판 2선승제"
-                    : "5판 3선승제"
+                      ? "3판 2선승제"
+                      : "5판 3선승제"
                   : "세트방식"}
               </span>
               <div className="flex items-center justify-center h-[8px]">
@@ -1487,8 +1468,8 @@ const MatchNode = (props: any) => {
               <span>
                 {match.scheduledDate
                   ? `${match.scheduledDate.toLocaleDateString()} ${
-                      match.scheduledTime || ""
-                    }`
+                    match.scheduledTime || ""
+                  }`
                   : "일정선택"}
               </span>
             </div>
@@ -1545,8 +1526,8 @@ const MatchNode = (props: any) => {
                           ? "bg-yellow-700 text-amber-950"
                           : "bg-transparent"
                         : isWinner
-                        ? "bg-yellow-300 text-yellow-700"
-                        : "bg-sky-300 text-sky-700"
+                          ? "bg-yellow-300 text-yellow-700"
+                          : "bg-sky-300 text-sky-700"
                     }`}
                   >
                     {isThirdPlace
@@ -1554,8 +1535,8 @@ const MatchNode = (props: any) => {
                         ? "3"
                         : ""
                       : isWinner
-                      ? "1"
-                      : "2"}
+                        ? "1"
+                        : "2"}
                   </span>
                 );
               }
@@ -1569,11 +1550,11 @@ const MatchNode = (props: any) => {
               ) {
                 winCount = match.matchWinnerRosterId
                   ? match.singleEliminationResult.setResult
-                      .filter(
-                        (r: { winnerRosterId?: string }) =>
-                          r.winnerRosterId === participant.id
-                      )
-                      .length.toString()
+                    .filter(
+                      (r: { winnerRosterId?: string }) =>
+                        r.winnerRosterId === participant.id
+                    )
+                    .length.toString()
                   : "";
               }
 
@@ -1668,8 +1649,8 @@ const buildSingleEliminationBracket = (
       round: uniqueRounds.length,
       name: "3,4위전",
       participants: [
-        { id: "", name: "" },
-        { id: "", name: "" },
+        {id: "", name: ""},
+        {id: "", name: ""},
       ],
       isThirdPlace: true,
     });
@@ -1705,31 +1686,31 @@ const updateMatches = (
   matches: CustomMatch[],
   data: { id: string; setting: MatchSetting }
 ) => {
-  const { setting } = data;
+  const {setting} = data;
   if (setting.isSettingNode) {
     return matches.map((match) =>
       match.round === setting.round
         ? {
-            ...match,
-            scheduledDate: setting.scheduledDate,
-            scheduledTime: setting.scheduledTime,
-            bestOf: setting.bestOf,
-            venue: setting.venue,
-            referee: setting.referee,
-          }
+          ...match,
+          scheduledDate: setting.scheduledDate,
+          scheduledTime: setting.scheduledTime,
+          bestOf: setting.bestOf,
+          venue: setting.venue,
+          referee: setting.referee,
+        }
         : match
     );
   } else {
     return matches.map((match) =>
       match.id === data.id
         ? {
-            ...match,
-            scheduledDate: setting.scheduledDate,
-            scheduledTime: setting.scheduledTime,
-            bestOf: setting.bestOf,
-            venue: setting.venue,
-            referee: setting.referee,
-          }
+          ...match,
+          scheduledDate: setting.scheduledDate,
+          scheduledTime: setting.scheduledTime,
+          bestOf: setting.bestOf,
+          venue: setting.venue,
+          referee: setting.referee,
+        }
         : match
     );
   }
@@ -1737,35 +1718,35 @@ const updateMatches = (
 
 // 6. 메인 컴포넌트
 const BracketCreateEditBoard = ({
-  stage,
-  selectedGroupId,
-  dispatch,
-  onChangeGroupTab,
-  onClickControls,
-  onSaveBracket,
-  onDeleteBracket,
-  isFinishUpdate,
-}: BracketBoardProps) => {
+                                  stage,
+                                  selectedGroupId,
+                                  dispatch,
+                                  onChangeGroupTab,
+                                  onClickControls,
+                                  onSaveBracket,
+                                  onDeleteBracket,
+                                  isFinishUpdate,
+                                }: BracketBoardProps) => {
   const navigate = useNavigate();
-  const { isExpand } = useExpandStore();
-  const { selectedCompetition } = useCompetition();
+  const {isExpand} = useExpandStore();
+  const {selectedCompetition} = useCompetition();
   const [groups, setGroups] = useState<Group[]>(
     stage.bracket?.groups?.length && stage.bracket?.groups?.length > 1
       ? stage.bracket?.groups || []
       : [
-          {
-            id: stage.bracket?.groups?.[0]?.id || "default",
-            name: "전체",
-            competitors: stage.competitors || [],
-            matches: [],
-          },
-        ]
+        {
+          id: stage.bracket?.groups?.[0]?.id || "default",
+          name: "전체",
+          competitors: stage.competitors || [],
+          matches: [],
+        },
+      ]
   );
-  const { data: refereeData } = getRefereesByCompetitionId(
+  const {data: refereeData} = getRefereesByCompetitionId(
     Number(selectedCompetition?.id)
   );
-  const { mutateAsync: updateMatchMutate } = updateMatch();
-  const { mutateAsync: updateRoundMutate } = updateRound();
+  const {mutateAsync: updateMatchMutate} = updateMatch();
+  const {mutateAsync: updateRoundMutate} = updateRound();
   const {
     mutateAsync: updateMatchParticipantsBulkMutate,
     isSuccess: isUpdateMatchParticipantsBulkSuccess,
@@ -1795,13 +1776,13 @@ const BracketCreateEditBoard = ({
         stage.bracket?.format === "FREE_FOR_ALL"
           ? buildFreeForAllBracket(group, stage.totalRounds || 1)
           : buildSingleEliminationBracket(
-              group,
-              stage.bracket?.hasThirdPlaceMatch || false
-            ),
+            group,
+            stage.bracket?.hasThirdPlaceMatch || false
+          ),
     }));
 
     setGroups(newGroups);
-    dispatch?.({ type: "SET_GROUPS", payload: newGroups });
+    dispatch?.({type: "SET_GROUPS", payload: newGroups});
     onChangeGroupTab?.(newGroups?.[0]?.id || "");
   }, []);
 
@@ -1822,7 +1803,7 @@ const BracketCreateEditBoard = ({
       if (stage.bracket?.hasThirdPlaceMatch && !hasThirdPlace) {
         matches = [...matches, createThirdPlaceMatch(group)];
       }
-      return { ...group, matches };
+      return {...group, matches};
     });
 
     setGroups(newGroups);
@@ -1852,8 +1833,8 @@ const BracketCreateEditBoard = ({
       round: lastRound,
       name: "3,4위전",
       participants: [
-        { id: "", name: "" },
-        { id: "", name: "" },
+        {id: "", name: ""},
+        {id: "", name: ""},
       ],
       isThirdPlace: true,
     };
@@ -1922,18 +1903,18 @@ const BracketCreateEditBoard = ({
       const updatedGroups = groups.map((group) =>
         group.id === selectedGroupId
           ? {
-              ...group,
-              matches: updateMatches(group.matches, data),
-            }
+            ...group,
+            matches: updateMatches(group.matches, data),
+          }
           : group
       );
 
-      dispatch?.({ type: "SET_GROUPS", payload: updatedGroups });
+      dispatch?.({type: "SET_GROUPS", payload: updatedGroups});
 
       setGroups((prevGroups: Group[]) =>
         prevGroups.map((group) =>
           group.id === selectedGroupId
-            ? { ...group, matches: updateMatches(group.matches, data) }
+            ? {...group, matches: updateMatches(group.matches, data)}
             : group
         )
       );
@@ -2006,14 +1987,14 @@ const BracketCreateEditBoard = ({
               match.participants &&
               match.participants.every((p) => p.name && p.id)
                 ? match.participants.map((participant) => ({
-                    rosterId: Number(participant.id),
-                  }))
+                  rosterId: Number(participant.id),
+                }))
                 : [],
             prevTempMatchIds: match.isThirdPlace
               ? finalMatch?.prevMatchIds?.map((id) => id || "") || []
               : match.prevMatchIds && match.prevMatchIds.length > 0
-              ? match.prevMatchIds.map((id) => id || "")
-              : [],
+                ? match.prevMatchIds.map((id) => id || "")
+                : [],
             participantsCount: match.participants?.length || 0,
             refereeIds: match.referee?.map((referee) => Number(referee)) || [],
             scheduledDate: dayjs(match.scheduledDate).format("YYYY-MM-DD"),
@@ -2047,14 +2028,14 @@ const BracketCreateEditBoard = ({
     matchNode: MatchNode,
   };
 
-  const { nodes, edges } =
+  const {nodes, edges} =
     stage.bracket?.format === "FREE_FOR_ALL"
       ? useFreeForAllBracketNodesEdges(
-          groups.find((group) => group.id === selectedGroupId)?.matches || []
-        )
+        groups.find((group) => group.id === selectedGroupId)?.matches || []
+      )
       : useSingleEliminationBracketNodesEdges(
-          groups.find((group) => group.id === selectedGroupId)?.matches || []
-        );
+        groups.find((group) => group.id === selectedGroupId)?.matches || []
+      );
 
   // nodes 배열을 생성할 때, 각 노드의 data에 필요한 모든 정보 포함
   const nodesWithData = nodes.map((node) => ({
@@ -2085,13 +2066,13 @@ const BracketCreateEditBoard = ({
           fitView
           minZoom={0.1}
           maxZoom={1.5}
-          defaultViewport={{ x: 0, y: 0, zoom: 0.45 }}
-          proOptions={{ hideAttribution: true }}
+          defaultViewport={{x: 0, y: 0, zoom: 0.45}}
+          proOptions={{hideAttribution: true}}
           draggable={false}
           nodesDraggable={false}
           panOnDrag={true}
           connectOnClick={false}
-          style={{ height: "calc(100% - 100px)" }}
+          style={{height: "calc(100% - 100px)"}}
         >
           {/* <Background gap={32} color="#222" /> */}
           {groups.length > 1 && selectedGroupId && (
@@ -2105,7 +2086,7 @@ const BracketCreateEditBoard = ({
             <ThirdPlaceToggleButton
               stage={stage}
               onChange={() =>
-                dispatch && dispatch({ type: "TOGGLE_THIRD_PLACE" })
+                dispatch && dispatch({type: "TOGGLE_THIRD_PLACE"})
               }
             />
           )}
@@ -2113,7 +2094,7 @@ const BracketCreateEditBoard = ({
             menus={["SUFFLE", "ZOOM_IN", "ZOOM_OUT", "EXPAND"]}
             onClick={handleClickControls}
           />
-          <DownloadButton />
+          <DownloadButton/>
         </ReactFlow>
       </div>
       {!isExpand && (
