@@ -10,16 +10,17 @@ import {
   Trophy,
 } from "lucide-react";
 
-import { NavMain } from "@/components/nav-main";
-import { NavSecondary } from "@/components/nav-secondary";
-import { NavUser } from "@/components/nav-user";
+import {NavMain} from "@/components/nav-main";
+import {NavSecondary} from "@/components/nav-secondary";
+import {NavUser} from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { TeamSwitcher } from "./team-switcher";
+import {TeamSwitcher} from "./team-switcher";
+import {useUser} from "@clerk/clerk-react";
 
 const data = {
   user: {
@@ -156,18 +157,26 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
+  const {user: clerkUser} = useUser();
+
+  const user = {
+    name: clerkUser?.fullName ?? data.user.name,
+    email: clerkUser?.primaryEmailAddress?.emailAddress ?? data.user.email,
+    avatar: clerkUser?.imageUrl ?? data.user.avatar
+  }
+
   return (
     <Sidebar variant="inset" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher teams={data.teams}/>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={data.navMain}/>
+        <NavSecondary items={data.navSecondary} className="mt-auto"/>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user}/>
       </SidebarFooter>
     </Sidebar>
   );
