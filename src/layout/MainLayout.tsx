@@ -3,6 +3,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { Outlet, useNavigate } from "react-router-dom";
 import { getToken } from "@/utils/token";
 import { useEffect } from "react";
+import { CompetitionProvider } from "@/contexts/CompetitionContext";
 
 const MainLayout = () => {
   const token = getToken();
@@ -15,12 +16,14 @@ const MainLayout = () => {
   }, [token]);
 
   return (
-    <SidebarProvider className="flex flex-col">
-      <div className="flex flex-1">
-        <AppSidebar />
-        <Outlet />
-      </div>
-    </SidebarProvider>
+    <CompetitionProvider>
+      <SidebarProvider className="flex flex-col">
+        <div className="flex flex-1">
+          <AppSidebar />
+          <Outlet />
+        </div>
+      </SidebarProvider>
+    </CompetitionProvider>
   );
 };
 

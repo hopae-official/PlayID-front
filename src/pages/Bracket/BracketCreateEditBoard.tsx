@@ -64,6 +64,7 @@ import { useNavigate } from "react-router-dom";
 import { useSelectedCompetitionStore } from "@/stores/competition";
 import type { CustomMatch } from "./BracketShowingBoard";
 import DownloadButton from "@/components/Bracket/DownloadButton";
+import {useCompetition} from "@/contexts/CompetitionContext.tsx";
 
 export type MatchSetting = {
   round: number;
@@ -1747,7 +1748,7 @@ const BracketCreateEditBoard = ({
 }: BracketBoardProps) => {
   const navigate = useNavigate();
   const { isExpand } = useExpandStore();
-  const { selectedCompetition } = useSelectedCompetitionStore();
+  const { selectedCompetition } = useCompetition();
   const [groups, setGroups] = useState<Group[]>(
     stage.bracket?.groups?.length && stage.bracket?.groups?.length > 1
       ? stage.bracket?.groups || []

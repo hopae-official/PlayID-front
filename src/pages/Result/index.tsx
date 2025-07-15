@@ -13,10 +13,9 @@ import { TabsList } from "@radix-ui/react-tabs";
 import { useEffect, useState } from "react";
 import { useExpandStore } from "@/stores/expand";
 import BracketStage from "../Bracket/BracketStage";
-import { getCompetitionsMy } from "@/queries/competitions";
+import { useCompetition } from "@/contexts/CompetitionContext";
 import { createStage, deleteStage, getStages } from "@/queries/stage";
 import type { GameType, Stage } from "@/api/model";
-import { toast } from "sonner";
 
 export type Sheet = {
   id: string;
@@ -31,10 +30,10 @@ export type Game = {
 
 const Result = () => {
   const { isExpand } = useExpandStore();
-  const { data: competitions = [], isError } = getCompetitionsMy();
+  const { competitions, selectedCompetition } = useCompetition();
   const [selectedGame, setSelectedGame] = useState<GameType | null>(null);
   const { data: stageDatas } = getStages(
-    competitions[0]?.id || 0,
+    selectedCompetition?.id || 0,
     selectedGame?.id || 0
   );
 
@@ -42,26 +41,20 @@ const Result = () => {
   const { mutate: deleteStageMutate } = deleteStage();
 
   const [stages, setStages] = useState<Stage[]>([]);
-  const games: GameType[] = competitions[0]?.gameTypes || [];
+  const games: GameType[] = selectedCompetition?.gameTypes || [];
 
   useEffect(() => {
-    if (isError) {
-      toast.error("대회 목록을 불러오는데 실패했습니다.");
+    if (selectedCompetition && selectedCompetition.gameTypes[0]) {
+      setSelectedGame(selectedCompetition.gameTypes[0]);
     }
-  }, [isError]);
-
-  useEffect(() => {
-    setSelectedGame(
-      competitions && competitions[0] ? competitions[0].gameTypes[0] : null
-    );
-  }, [competitions]);
+  }, [selectedCompetition]);
 
   useEffect(() => {
     if (!stageDatas) return;
 
     if (stageDatas?.length === 0) {
       createStageMutate({
-        competitionId: competitions[0]?.id || 0,
+        competitionId: selectedCompetition?.id || 0,
         gameTypeId: selectedGame?.id || 0,
         name: "스테이지 1",
       });
@@ -72,7 +65,7 @@ const Result = () => {
 
   const handleAddStage = () => {
     createStageMutate({
-      competitionId: competitions[0]?.id || 0,
+      competitionId: selectedCompetition?.id || 0,
       gameTypeId: selectedGame?.id || 0,
       name: `스테이지 ${stages.length + 1}`,
     });
@@ -122,14 +115,10 @@ const Result = () => {
           />
           <Breadcrumb>
             <BreadcrumbList>
-              <BreadcrumbItem className="hidden md:block">
-                <BreadcrumbLink href="#">
-                  Building Your Application
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>Data Fetching</BreadcrumbPage>
+                <BreadcrumbPage>
+                  {selectedCompetition?.title || "대회 목록"}
+                </BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
