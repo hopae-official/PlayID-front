@@ -1106,7 +1106,7 @@ const useFreeForAllBracketNodesEdges = (
     .sort((a, b) => b.point - a.point);
 
   const gameNodes =
-    boardType === BOARD_TYPE.RESULT
+    boardType === BOARD_TYPE.RESULT && totalResult.length > 0
       ? [
           ...matches.filter((m) => !m.isSettingNode && !m.isThirdPlace),
           {
@@ -1125,7 +1125,7 @@ const useFreeForAllBracketNodesEdges = (
       : matches.filter((m) => !m.isSettingNode && !m.isThirdPlace);
 
   const settingNodes =
-    boardType === BOARD_TYPE.RESULT
+    boardType === BOARD_TYPE.RESULT && totalResult.length > 0
       ? [
           ...matches.filter((m) => m.isSettingNode),
           {
@@ -1145,7 +1145,9 @@ const useFreeForAllBracketNodesEdges = (
       data: match,
       position: {
         x:
-          idx === gameNodes.length - 1 && boardType === BOARD_TYPE.RESULT
+          idx === gameNodes.length - 1 &&
+          boardType === BOARD_TYPE.RESULT &&
+          totalResult.length > 0
             ? (match.round - 1) * columnWidth + 100
             : (match.round - 1) * columnWidth,
         y: rowHeight,
@@ -1161,7 +1163,9 @@ const useFreeForAllBracketNodesEdges = (
       data: match,
       position: {
         x:
-          idx === settingNodes.length - 1 && boardType === BOARD_TYPE.RESULT
+          idx === settingNodes.length - 1 &&
+          boardType === BOARD_TYPE.RESULT &&
+          totalResult.length > 0
             ? (match.round - 1) * columnWidth + 100
             : (match.round - 1) * columnWidth,
         y: 100,
