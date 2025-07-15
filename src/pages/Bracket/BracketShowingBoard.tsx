@@ -24,6 +24,7 @@ import { useExpandStore } from "@/stores/expand";
 import MatchResultDrawer from "@/components/Bracket/MatchResultDrawer";
 import type { InitializeBracketStructureDto } from "@/api/model";
 import MatchResultDetailDrawer from "@/components/Bracket/MatchResultDetailDrawer";
+import DownloadButton from "@/components/Bracket/DownloadButton";
 
 export type CustomMatch = {
   id: string;
@@ -1704,16 +1705,18 @@ const BracketShowingBoard = ({
     },
   }));
 
-  const suppressEdit =
-    boardType === "SHOW" &&
-    (groups.some((group) =>
-      group.matches.some((match) => match.matchWinnerRosterId)
-    ) ||
-      groups.some((group) =>
-        group.matches.some((match: CustomMatch) =>
-          match.freeForAllResult?.setResult?.some((result) => result.point)
-        )
-      ));
+  // const suppressEdit =
+  //   boardType === "SHOW" &&
+  //   (groups.some((group) =>
+  //     group.matches.some((match) => match.matchWinnerRosterId)
+  //   ) ||
+  //     groups.some((group) =>
+  //       group.matches.some((match: CustomMatch) =>
+  //         match.freeForAllResult?.setResult?.some((result) => result.point)
+  //       )
+  //     ));
+
+  const suppressEdit = false;
 
   return (
     <div
@@ -1740,6 +1743,7 @@ const BracketShowingBoard = ({
           panOnDrag={true}
           connectOnClick={false}
         >
+          <DownloadButton />
           {/* <Background gap={32} color="#222" /> */}
           {groups.length > 1 && selectedGroupId && (
             <GroupToggleButton
@@ -1762,7 +1766,6 @@ const BracketShowingBoard = ({
               <span className="text-white text-lg font-bold">asd</span>
             </Panel>
           )}
-
           <CustomControls
             menus={
               boardType === BOARD_TYPE.RESULT
