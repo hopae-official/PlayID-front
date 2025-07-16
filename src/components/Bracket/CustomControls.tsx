@@ -1,4 +1,9 @@
-import { Panel, useReactFlow } from "@xyflow/react";
+import {
+  getNodesBounds,
+  getViewportForBounds,
+  Panel,
+  useReactFlow,
+} from "@xyflow/react";
 import {
   Plus,
   Minus,
@@ -7,6 +12,7 @@ import {
   Trash2,
   Shrink,
   Shuffle,
+  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useExpandStore } from "@/stores/expand";
@@ -21,6 +27,7 @@ import {
 import { DialogClose, DialogTrigger } from "@radix-ui/react-dialog";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { toPng } from "html-to-image";
 
 export const CustomControlMenu = {
   SUFFLE: "SUFFLE",
@@ -29,6 +36,7 @@ export const CustomControlMenu = {
   EXPAND: "EXPAND",
   EDIT: "EDIT",
   DELETE: "DELETE",
+  DOWNLOAD: "DOWNLOAD",
 } as const;
 
 export type CustomControlMenuType =
@@ -39,8 +47,19 @@ interface CustomControlProps {
   onClick?: (menu: CustomControlMenuType) => void;
 }
 
+const downloadImage = (dataUrl: string) => {
+  const a = document.createElement("a");
+
+  a.setAttribute("download", "reactflow.png");
+  a.setAttribute("href", dataUrl);
+  a.click();
+};
+
+const imageWidth = 1024;
+const imageHeight = 768;
+
 const CustomControls = ({ menus, onClick }: CustomControlProps) => {
-  const { zoomIn, zoomOut, fitView } = useReactFlow();
+  const { zoomIn, zoomOut, fitView, getNodes } = useReactFlow();
   const { isExpand, setIsExpand } = useExpandStore();
   const [isDeleteBracketOpen, setIsDeleteBracketOpen] = useState(false);
 
@@ -69,6 +88,35 @@ const CustomControls = ({ menus, onClick }: CustomControlProps) => {
 
   const handleClickShuffle = () => {
     onClick?.(CustomControlMenu.SUFFLE);
+  };
+
+  const handleClickDownload = () => {
+    // we calculate a transform for the nodes so that all nodes are visible
+    // we then overwrite the transform of the `.react-flow__viewport` element
+    // with the style option of the html-to-image library
+    const nodesBounds = getNodesBounds(getNodes());
+    const viewport = getViewportForBounds(
+      nodesBounds,
+      imageWidth,
+      imageHeight,
+      0.5,
+      2,
+      {
+        x: 10,
+        y: 10,
+      }
+    );
+
+    toPng(document.querySelector(".react-flow__viewport") as HTMLElement, {
+      backgroundColor: "#1a365d",
+      width: imageWidth,
+      height: imageHeight,
+      style: {
+        width: `${imageWidth}px`,
+        height: `${imageHeight}px`,
+        transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
+      },
+    }).then(downloadImage);
   };
 
   return (
@@ -201,6 +249,17 @@ const CustomControls = ({ menus, onClick }: CustomControlProps) => {
                 </DialogHeader>
               </DialogContent>
             </Dialog>
+          )}
+          {menus?.includes(CustomControlMenu.DOWNLOAD) && (
+            <Button
+              size="icon"
+              variant="ghost"
+              className="w-8 h-8 rounded-none cursor-pointer"
+              aria-label={CustomControlMenu.DOWNLOAD}
+              onClick={handleClickDownload}
+            >
+              <Download />
+            </Button>
           )}
         </div>
       </div>

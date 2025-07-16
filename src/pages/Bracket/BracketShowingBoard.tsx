@@ -24,7 +24,6 @@ import { useExpandStore } from "@/stores/expand";
 import MatchResultDrawer from "@/components/Bracket/MatchResultDrawer";
 import type { InitializeBracketStructureDto } from "@/api/model";
 import MatchResultDetailDrawer from "@/components/Bracket/MatchResultDetailDrawer";
-import DownloadButton from "@/components/Bracket/DownloadButton";
 
 export type CustomMatch = {
   id: string;
@@ -1748,8 +1747,6 @@ const BracketShowingBoard = ({
           panOnDrag={true}
           connectOnClick={false}
         >
-          <DownloadButton />
-          {/* <Background gap={32} color="#222" /> */}
           {groups.length > 1 && selectedGroupId && (
             <GroupToggleButton
               groups={groups}
@@ -1774,10 +1771,17 @@ const BracketShowingBoard = ({
           <CustomControls
             menus={
               boardType === BOARD_TYPE.RESULT
-                ? ["ZOOM_IN", "ZOOM_OUT", "EXPAND"]
+                ? ["ZOOM_IN", "ZOOM_OUT", "EXPAND", "DOWNLOAD"]
                 : suppressEdit
-                ? ["ZOOM_IN", "ZOOM_OUT", "EXPAND", "DELETE"]
-                : ["ZOOM_IN", "ZOOM_OUT", "EXPAND", "EDIT", "DELETE"]
+                ? ["ZOOM_IN", "ZOOM_OUT", "EXPAND", "DELETE", "DOWNLOAD"]
+                : [
+                    "ZOOM_IN",
+                    "ZOOM_OUT",
+                    "EXPAND",
+                    "EDIT",
+                    "DELETE",
+                    "DOWNLOAD",
+                  ]
             }
             onClick={handleClickControls}
           />
