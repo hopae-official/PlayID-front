@@ -2,7 +2,7 @@ import {competitionsControllerFindHostingCompetitions} from "@/api";
 import {useQuery} from "@tanstack/react-query";
 import {useAuth} from "@clerk/clerk-react";
 
-export const getCompetitionsMy = () => {
+export const useCompetitionsMyQuery = () => {
   const {isSignedIn} = useAuth()
   return useQuery({
     queryKey: ["competitionsMy"],

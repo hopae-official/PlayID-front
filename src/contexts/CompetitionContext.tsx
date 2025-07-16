@@ -1,6 +1,6 @@
 import React, {createContext, type ReactNode, useContext, useEffect, useMemo, useState} from 'react';
 import {type Competition, type Workspace} from '@/api/model';
-import {getCompetitionsMy} from '@/queries/competitions';
+import {useCompetitionsMyQuery} from '@/queries/competitions';
 import {toast} from 'sonner';
 import {getCompetitionsByWorkspace, getDefaultCompetitionForWorkspace, useWorkSpaceQuery,} from '@/lib/workspace-utils';
 
@@ -34,7 +34,7 @@ export const CompetitionProvider: React.FC<CompetitionProviderProps> = ({childre
   const workspaces = workspacesData ?? []
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null);
-  const {data: competitions = [], isError} = getCompetitionsMy();
+  const {data: competitions = [], isError} = useCompetitionsMyQuery();
 
   const workspaceCompetitions = useMemo(() => {
     if (!selectedWorkspace) return competitions;
