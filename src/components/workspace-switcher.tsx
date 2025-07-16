@@ -48,10 +48,18 @@ export function WorkspaceSwitcher() {
                             <DropdownMenuItem
                                 key={workspace.name}
                                 onClick={() => changeWorkspace(workspace)}
-                                className="gap-2 p-2"
+                                className={`gap-2 p-2 ${
+                                    selectedWorkspace.id === workspace.id 
+                                        ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
+                                        : ''
+                                }`}
                             >
-
-                                {workspace.name}
+                                <div className="flex items-center justify-between w-full">
+                                    <span>{workspace.name}</span>
+                                    {selectedWorkspace.id === workspace.id && (
+                                        <span className="ml-2 text-xs">✓</span>
+                                    )}
+                                </div>
                             </DropdownMenuItem>
                         ))}
 
