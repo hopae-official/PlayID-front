@@ -1,12 +1,17 @@
-import React, {createContext, type ReactNode, useContext, useEffect, useState} from 'react';
-import {type Competition} from '@/api/model';
+import React, {createContext, type ReactNode, useContext, useEffect, useMemo, useState} from 'react';
+import {type Competition, type Workspace} from '@/api/model';
 import {getCompetitionsMy} from '@/queries/competitions';
 import {toast} from 'sonner';
+import {getCompetitionsByWorkspace, getDefaultCompetitionForWorkspace, useWorkSpaceQuery,} from '@/lib/workspace-utils';
 
 interface CompetitionContextType {
   competitions: Competition[];
   selectedCompetition: Competition | null;
   changeCompetition: (competition: Competition) => void;
+  workspaces: Workspace[];
+  selectedWorkspace: Workspace | null;
+  changeWorkspace: (workspace: Workspace) => void;
+  workspaceCompetitions: Competition[];
 }
 
 const CompetitionContext = createContext<CompetitionContextType | undefined>(undefined);
@@ -24,8 +29,17 @@ interface CompetitionProviderProps {
 }
 
 export const CompetitionProvider: React.FC<CompetitionProviderProps> = ({children}) => {
+
+  const {data: workspacesData} = useWorkSpaceQuery();
+  const workspaces = workspacesData ?? []
+  const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null);
   const {data: competitions = [], isError} = getCompetitionsMy();
+
+  const workspaceCompetitions = useMemo(() => {
+    if (!selectedWorkspace) return competitions;
+    return getCompetitionsByWorkspace(competitions, selectedWorkspace.id);
+  }, [competitions, selectedWorkspace]);
 
   useEffect(() => {
     if (isError) {
@@ -34,19 +48,42 @@ export const CompetitionProvider: React.FC<CompetitionProviderProps> = ({childre
   }, [isError]);
 
   useEffect(() => {
-    if (competitions.length > 0 && !selectedCompetition) {
-      setSelectedCompetition(competitions[0]);
+    if (workspaces.length > 0 && !selectedWorkspace) {
+      setSelectedWorkspace(workspaces[0]);
     }
-  }, [competitions, selectedCompetition]);
+  }, [workspaces, selectedWorkspace]);
+
+  useEffect(() => {
+    if (selectedWorkspace && competitions.length > 0) {
+      const isCurrentCompetitionInWorkspace = selectedCompetition &&
+        selectedCompetition.workspaceId === selectedWorkspace.id;
+
+      if (!selectedCompetition || !isCurrentCompetitionInWorkspace) {
+        const defaultCompetition = getDefaultCompetitionForWorkspace(
+          competitions,
+          selectedWorkspace.id
+        );
+        setSelectedCompetition(defaultCompetition);
+      }
+    }
+  }, [competitions, selectedWorkspace, selectedCompetition]);
 
   const changeCompetition = (competition: Competition) => {
     setSelectedCompetition(competition);
+  };
+
+  const changeWorkspace = (workspace: Workspace) => {
+    setSelectedWorkspace(workspace);
   };
 
   const value: CompetitionContextType = {
     competitions,
     selectedCompetition,
     changeCompetition,
+    workspaces,
+    selectedWorkspace,
+    changeWorkspace,
+    workspaceCompetitions,
   };
 
   return (

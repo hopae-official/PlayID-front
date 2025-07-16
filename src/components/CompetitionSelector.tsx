@@ -2,7 +2,7 @@ import {useCompetition} from "@/contexts/CompetitionContext";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue,} from "@/components/ui/select";
 
 const CompetitionSelector = () => {
-  const {competitions, selectedCompetition, changeCompetition} = useCompetition();
+  const {workspaceCompetitions: competitions, selectedCompetition, changeCompetition} = useCompetition();
 
   if (!selectedCompetition || competitions.length === 0) {
     return <span className="text-sm">대회 목록</span>;
@@ -18,7 +18,7 @@ const CompetitionSelector = () => {
         }
       }}
     >
-      <SelectTrigger className="w-fit border-0 h-auto p-0 text-sm hover:bg-transparent focus:ring-0">
+      <SelectTrigger className="w-fit border-0 h-auto p-0 text-sm hover:bg-transparent focus:ring-0 px-3">
         <SelectValue/>
       </SelectTrigger>
       <SelectContent>
