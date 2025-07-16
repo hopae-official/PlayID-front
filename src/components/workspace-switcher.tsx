@@ -1,5 +1,4 @@
 "use client";
-import * as React from "react";
 import {ChevronsUpDown} from "lucide-react";
 import {
     DropdownMenu,
@@ -9,33 +8,13 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar,} from "@/components/ui/sidebar";
-
-
-const getWorkspaces = () => {
-    return [
-        {
-            id: '1',
-            name: "Acme Inc",
-            plan: "Enterprise",
-        },
-        {
-            id: '2',
-            name: "Acme Corp.",
-            plan: "Enterprise",
-        },
-        {
-            id: '3',
-            name: "Evil Corp.",
-            plan: "Enterprise",
-        },
-    ]
-}
+import {useCompetition} from "@/contexts/CompetitionContext";
 
 export function WorkspaceSwitcher() {
     const {isMobile} = useSidebar();
-    const workspaces = getWorkspaces();
-    const [activeWorkspace, setActiveWorkspace] = React.useState(workspaces[0]);
-    if (!activeWorkspace) {
+    const {workspaces, selectedWorkspace, changeWorkspace} = useCompetition();
+
+    if (!selectedWorkspace) {
         return null;
     }
 
@@ -50,8 +29,8 @@ export function WorkspaceSwitcher() {
                         >
 
                             <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-medium">{activeWorkspace.name}</span>
-                                <span className="truncate text-xs">{activeWorkspace.plan}</span>
+                                <span className="truncate font-medium">{selectedWorkspace.name}</span>
+                                <span className="truncate text-xs">{selectedWorkspace.plan}</span>
                             </div>
                             <ChevronsUpDown className="ml-auto"/>
                         </SidebarMenuButton>
@@ -68,7 +47,7 @@ export function WorkspaceSwitcher() {
                         {workspaces.map((workspace) => (
                             <DropdownMenuItem
                                 key={workspace.name}
-                                onClick={() => setActiveWorkspace(workspace)}
+                                onClick={() => changeWorkspace(workspace)}
                                 className="gap-2 p-2"
                             >
 
