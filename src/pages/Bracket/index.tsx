@@ -12,6 +12,7 @@ import {createStage, deleteStage, getStages} from "@/queries/stage";
 import {useSelectedGameStore} from "@/stores/game";
 import CompetitionSelector from "@/components/CompetitionSelector";
 import {Button} from "@/components/ui/button";
+import {useLocation} from "react-router-dom";
 
 export type Sheet = {
   id: string;
@@ -36,6 +37,8 @@ const Bracket = () => {
   const {mutate: deleteStageMutate} = deleteStage();
   const [stages, setStages] = useState<Stage[]>([]);
   const games: GameType[] = selectedCompetition?.gameTypes || [];
+
+  const location = useLocation();
 
   useEffect(() => {
     if (selectedGame) return;
@@ -123,14 +126,14 @@ const Bracket = () => {
                 </TabsTrigger>
               ))}
             </TabsList>
-            <Button
+            {location.pathname.includes("bracket") ? <Button
               variant="outline"
               size="lg"
               className="ml-auto"
               disabled={false}
             >
               로스터 생성
-            </Button>
+            </Button> : null}
           </div>
           {selectedGame && stages.length > 0 && (
             <TabsContent value={selectedGame.id.toString()}>
