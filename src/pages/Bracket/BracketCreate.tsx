@@ -981,16 +981,16 @@ const BracketCreate = () => {
                       </div>
                     </div>
                     <div className="flex flex-row items-center gap-1 text-sm font-semibold">
-                      {rosters && rosters.data && rosters.data.length === 0 ? (
-                        <RosterUnconfirmedDialog/>
-                      ) : (
-                        <>
-                          <span>확정 참가팀 수 :</span>
-                          <span className="text-blue-500">
+                      {rosters && rosters.data && rosters.data.length === 0 ?
+                        null
+                        : (
+                          <>
+                            <span>확정 참가팀 수 :</span>
+                            <span className="text-blue-500">
                             {rosters && rosters.data && rosters.data.length}
                           </span>
-                        </>
-                      )}
+                          </>
+                        )}
                     </div>
                   </div>
                   <div className="max-h-[calc(100vh-356px)] overflow-y-scroll flex flex-col gap-2 scrollbar-hide">
