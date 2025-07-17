@@ -146,7 +146,7 @@ const Bracket = () => {
               variant="outline"
               size="lg"
               className="ml-auto"
-              disabled={isPendingGenerateRoster}
+              disabled={typeof selectedCompetition?.hasBracket !== 'boolean' || selectedCompetition?.hasBracket || isPendingGenerateRoster}
               onClick={async () => {
                 try {
                   if (selectedCompetition?.competitionId) {

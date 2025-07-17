@@ -5,8 +5,8 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
-import type { GameType } from './gameType';
-import type { Workspace } from './workspace';
+import type {GameType} from './gameType';
+import type {Workspace} from './workspace';
 
 export interface Competition {
   alias: string;
@@ -37,4 +37,6 @@ export interface Competition {
    * @nullable
    */
   workspaceId: string | null;
+
+  hasBracket: boolean;
 }

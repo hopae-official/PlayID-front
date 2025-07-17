@@ -1,6 +1,6 @@
-import Axios, { type AxiosRequestConfig } from "axios";
-import { merge } from "lodash";
-import { getToken } from "../utils/token";
+import Axios, {type AxiosRequestConfig} from "axios";
+import {merge} from "lodash";
+import {getToken} from "../utils/token";
 
 export const instance = Axios.create({
   baseURL: "https://esports-api.furo.one",
@@ -15,7 +15,7 @@ export const customInstance = <T>(
     ...config,
     ...options,
     cancelToken: source.token,
-  }).then(({ data }) => data) as any;
+  }).then(({data}) => data) as any;
 
   promise.cancel = () => {
     source.cancel("Query was cancelled");
@@ -26,7 +26,7 @@ export const customInstance = <T>(
 
 instance.interceptors.request.use(async (config) => {
   const token = getToken();
-  merge(config.headers, { Authorization: `Bearer ${token}` });
+  merge(config.headers, {Authorization: `Bearer ${token}`});
   return config;
 });
 

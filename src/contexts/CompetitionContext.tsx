@@ -31,7 +31,7 @@ interface CompetitionProviderProps {
 export const CompetitionProvider: React.FC<CompetitionProviderProps> = ({children}) => {
 
   const {data: workspacesData} = useWorkSpaceQuery();
-  const workspaces = workspacesData ?? []
+  const workspaces = useMemo(() => workspacesData ?? [], [workspacesData])
   const [selectedWorkspace, setSelectedWorkspace] = useState<Workspace | null>(null);
   const [selectedCompetition, setSelectedCompetition] = useState<Competition | null>(null);
   const {data: competitions = [], isError} = useCompetitionsMyQuery();
