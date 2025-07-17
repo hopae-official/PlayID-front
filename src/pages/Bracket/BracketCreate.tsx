@@ -8,16 +8,6 @@ import {Switch} from "@/components/ui/switch";
 import {v4 as uuidv4} from "uuid";
 import {Input} from "@/components/ui/input";
 import BracketCreateEditBoard from "./BracketCreateEditBoard";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {toast} from "sonner";
 import AssignCompetitorDialog from "@/components/Bracket/AssignCompetitorDialog";
 import {useExpandStore} from "@/stores/expand";
@@ -470,33 +460,6 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
   }
 };
 
-const RosterUnconfirmedDialog = () => (
-  <Dialog>
-    <DialogTrigger asChild>
-      <Button
-        variant="ghost"
-        className="text-blue-500 cursor-pointer underline"
-      >
-        로스터 미확정
-      </Button>
-    </DialogTrigger>
-    <DialogContent className="sm:max-w-[425px]" showCloseButton={false}>
-      <DialogHeader>
-        <DialogTitle>로스터를 확정하러 가시겠습니까?</DialogTitle>
-        <DialogDescription>
-          로스터를 확정하면 대진 배정을 할 수 있어요.
-        </DialogDescription>
-      </DialogHeader>
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button variant="outline">취소</Button>
-        </DialogClose>
-        <Button>이동</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-);
-
 // 최소 남은 팀 수 체크 함수
 const checkMinimumRemainingTeams = (
   rosters: Competitor[],
@@ -875,16 +838,16 @@ const BracketCreate = () => {
                   </Button>
                 </div>
                 <div className="flex flex-row items-center gap-1 text-sm font-semibold">
-                  {rosters && rosters.data && rosters.data.length === 0 ? (
-                    <RosterUnconfirmedDialog/>
-                  ) : (
-                    <>
-                      <span>확정 참가팀수 :</span>
-                      <span className="text-blue-500">
+                  {rosters && rosters.data && rosters.data.length === 0 ?
+                    null
+                    : (
+                      <>
+                        <span>확정 참가팀수 :</span>
+                        <span className="text-blue-500">
                         {rosters && rosters.data && rosters.data.length}
                       </span>
-                    </>
-                  )}
+                      </>
+                    )}
                 </div>
               </div>
             )}
