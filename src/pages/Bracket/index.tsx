@@ -41,7 +41,7 @@ const useGenerateRosterMutation = () => {
 const Bracket = () => {
   const {isExpand} = useExpandStore();
   const {selectedGame, setSelectedGame} = useSelectedGameStore();
-  const {selectedCompetition} = useCompetition();
+  const {selectedCompetition, competitions} = useCompetition();
   const {data: stageDatas} = getStages(
     selectedCompetition?.id || 0,
     selectedGame?.id || 0
@@ -56,8 +56,11 @@ const Bracket = () => {
   const queryClient = useQueryClient();
   const {mutateAsync: asyncGenerateRosterMutation, isPending: isPendingGenerateRoster} = useGenerateRosterMutation()
 
+  const hasBracket = competitions.find(it => it.id === selectedCompetition?.id)?.gameTypes?.some(it => it.hasBracket)
+
   useEffect(() => {
-    if (selectedGame) return;
+
+    if (selectedGame?.competitionId === selectedCompetition?.competitionId) return;
 
     if (selectedCompetition && selectedCompetition.gameTypes[0]) {
       setSelectedGame(selectedCompetition.gameTypes[0]);
@@ -146,11 +149,12 @@ const Bracket = () => {
               variant="outline"
               size="lg"
               className="ml-auto"
-              disabled={typeof selectedCompetition?.hasBracket !== 'boolean' || selectedCompetition?.hasBracket || isPendingGenerateRoster}
+              disabled={!selectedCompetition || hasBracket || isPendingGenerateRoster}
               onClick={async () => {
                 try {
                   if (selectedCompetition?.competitionId) {
                     await asyncGenerateRosterMutation({competitionId: selectedCompetition?.competitionId});
+                    toast.success("로스터를 생성했습니다.");
                     await queryClient.invalidateQueries({
                       queryKey: ["competitionsMy"]
                     })

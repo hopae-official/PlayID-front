@@ -37,6 +37,4 @@ export interface Competition {
    * @nullable
    */
   workspaceId: string | null;
-
-  hasBracket: boolean;
 }

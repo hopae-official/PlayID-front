@@ -1,16 +1,12 @@
 import {
   bracketControllerCreateBracket,
   bracketControllerDeleteBracket,
-  bracketControllerInitializeBracketStructure,
   bracketControllerGetBracket,
+  bracketControllerInitializeBracketStructure,
 } from "@/api";
-import type {
-  BracketControllerCreateBracket200,
-  CreateBracketDto,
-  InitializeBracketStructureDto,
-} from "@/api/model";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import type {BracketControllerCreateBracket200, CreateBracketDto, InitializeBracketStructureDto,} from "@/api/model";
+import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
+import {toast} from "sonner";
 
 export const getBracket = (bracketId: number) => {
   return useQuery({
@@ -32,7 +28,8 @@ export const createBracket = () => {
       return (response as BracketControllerCreateBracket200).data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["getStages"] });
+      queryClient.invalidateQueries({queryKey: ["getStages"]});
+      queryClient.invalidateQueries({queryKey: ["competitionsMy"]})
     },
   });
 };
@@ -41,9 +38,9 @@ export const createBracketStructure = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      bracketId,
-      initializeBracketStructureDto,
-    }: {
+                         bracketId,
+                         initializeBracketStructureDto,
+                       }: {
       bracketId: number;
       initializeBracketStructureDto: InitializeBracketStructureDto;
     }) => {
@@ -54,9 +51,9 @@ export const createBracketStructure = () => {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["getStages"] });
-      queryClient.invalidateQueries({ queryKey: ["getBracket"] });
-      queryClient.invalidateQueries({ queryKey: ["getBracketGroups"] });
+      queryClient.invalidateQueries({queryKey: ["getStages"]});
+      queryClient.invalidateQueries({queryKey: ["getBracket"]});
+      queryClient.invalidateQueries({queryKey: ["getBracketGroups"]});
     },
   });
 };
@@ -70,9 +67,10 @@ export const deleteBracket = (refreshQueries: boolean = false) => {
     },
     onSuccess: () => {
       if (refreshQueries) {
-        queryClient.invalidateQueries({ queryKey: ["getStages"] });
-        queryClient.invalidateQueries({ queryKey: ["getBracket"] });
-        queryClient.invalidateQueries({ queryKey: ["getBracketGroups"] });
+        queryClient.invalidateQueries({queryKey: ["getStages"]});
+        queryClient.invalidateQueries({queryKey: ["getBracket"]});
+        queryClient.invalidateQueries({queryKey: ["getBracketGroups"]});
+        queryClient.invalidateQueries({queryKey: ["competitionsMy"]});
         toast.success("대진표가 삭제되었습니다.");
       }
     },

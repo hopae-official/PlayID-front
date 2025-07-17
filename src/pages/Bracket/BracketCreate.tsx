@@ -1,12 +1,12 @@
-import { useReducer, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { ArrowLeftIcon, Asterisk, MinusIcon, PlusIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Switch } from "@/components/ui/switch";
-import { v4 as uuidv4 } from "uuid";
-import { Input } from "@/components/ui/input";
+import {useEffect, useReducer, useRef, useState} from "react";
+import {Button} from "@/components/ui/button";
+import {RadioGroup, RadioGroupItem} from "@/components/ui/radio-group";
+import {Label} from "@/components/ui/label";
+import {ArrowLeftIcon, Asterisk, MinusIcon, PlusIcon} from "lucide-react";
+import {useNavigate, useParams} from "react-router-dom";
+import {Switch} from "@/components/ui/switch";
+import {v4 as uuidv4} from "uuid";
+import {Input} from "@/components/ui/input";
 import BracketCreateEditBoard from "./BracketCreateEditBoard";
 import {
   Dialog,
@@ -18,24 +18,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import {toast} from "sonner";
 import AssignCompetitorDialog from "@/components/Bracket/AssignCompetitorDialog";
-import { useExpandStore } from "@/stores/expand";
-import { getStage, getStages } from "@/queries/stage";
-import { useParams } from "react-router-dom";
-import {
-  createBracket,
-  createBracketStructure,
-  deleteBracket,
-} from "@/queries/bracket";
-import type {
-  CreateBracketDtoFormat,
-  InitializeBracketStructureDto,
-} from "@/api/model";
-import { useEffect } from "react";
-import { getAllRosters } from "@/queries/roster";
-import type { CustomControlMenuType } from "@/components/Bracket/CustomControls";
-import type { CustomMatch } from "./BracketShowingBoard";
+import {useExpandStore} from "@/stores/expand";
+import {getStage, getStages} from "@/queries/stage";
+import {createBracket, createBracketStructure, deleteBracket,} from "@/queries/bracket";
+import type {CreateBracketDtoFormat, InitializeBracketStructureDto,} from "@/api/model";
+import {getAllRosters} from "@/queries/roster";
+import type {CustomControlMenuType} from "@/components/Bracket/CustomControls";
+import type {CustomMatch} from "./BracketShowingBoard";
+import {useQueryClient} from "@tanstack/react-query";
 
 export type Competitor = {
   id: string;
@@ -71,23 +63,23 @@ export type Action =
   | { type: "ADD_COMPETITOR"; payload: { rosters: Competitor[] } }
   | { type: "DELETE_COMPETITOR" }
   | {
-      type: "SET_COMPETITORS_COUNT";
-      payload: { count: number; rosters: Competitor[] };
-    }
+  type: "SET_COMPETITORS_COUNT";
+  payload: { count: number; rosters: Competitor[] };
+}
   | { type: "ENSURE_MINIMUM_COMPETITORS" }
   | { type: "TOGGLE_THIRD_PLACE" }
   | {
-      type: "INIT_GROUPS";
-      payload: { enabled: boolean; rosters: Competitor[] };
-    }
+  type: "INIT_GROUPS";
+  payload: { enabled: boolean; rosters: Competitor[] };
+}
   | { type: "ADD_GROUP" }
   | { type: "SET_GROUPS"; payload: Group[] }
   | { type: "DELETE_GROUP"; payload: string }
   | { type: "CHANGE_GROUP_NAME"; payload: { id: string; name: string } }
   | {
-      type: "CHANGE_GROUP_COMPETITOR_COUNT";
-      payload: { id: string; newCount: number; rosters: Competitor[] };
-    }
+  type: "CHANGE_GROUP_COMPETITOR_COUNT";
+  payload: { id: string; newCount: number; rosters: Competitor[] };
+}
   | { type: "SET_BRACKET_TYPE"; payload: CreateBracketDtoFormat }
   | { type: "SET_TOTAL_ROUNDS"; payload: number }
   | { type: "SET_ASSIGN_COMPETITORS"; payload: Competitor[] }
@@ -100,7 +92,7 @@ export type Action =
 const stageReducer = (state: CustomStage, action: Action): CustomStage => {
   switch (action.type) {
     case "SET_STAGE_NAME":
-      return { ...state, name: action.payload };
+      return {...state, name: action.payload};
 
     case "ADD_COMPETITOR":
       if (
@@ -113,7 +105,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
         ...state,
         competitors: [
           ...(state.competitors || []),
-          { id: uuidv4(), name: "" },
+          {id: uuidv4(), name: ""},
         ] as Competitor[],
       };
 
@@ -125,25 +117,25 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
       };
 
     case "SET_COMPETITORS_COUNT": {
-      const { count, rosters } = action.payload;
+      const {count, rosters} = action.payload;
       if (isNaN(count)) return state;
       if (rosters.length > 2 && count > rosters.length) {
-        return { ...state, competitors: rosters };
+        return {...state, competitors: rosters};
       }
       const currentCompetitors = state.competitors;
-      const newCompetitors = Array.from({ length: count }, (_, i) => {
-        return currentCompetitors?.[i] || { id: uuidv4(), name: "" };
+      const newCompetitors = Array.from({length: count}, (_, i) => {
+        return currentCompetitors?.[i] || {id: uuidv4(), name: ""};
       });
-      return { ...state, competitors: newCompetitors };
+      return {...state, competitors: newCompetitors};
     }
 
     case "ENSURE_MINIMUM_COMPETITORS":
       if ((state.competitors?.length || 0) < 2) {
         const newCompetitors = [...(state.competitors || [])];
         while (newCompetitors.length < 2) {
-          newCompetitors.push({ id: uuidv4(), name: "" });
+          newCompetitors.push({id: uuidv4(), name: ""});
         }
-        return { ...state, competitors: newCompetitors };
+        return {...state, competitors: newCompetitors};
       }
       return state;
 
@@ -157,7 +149,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
       };
 
     case "INIT_GROUPS": {
-      const { enabled, rosters } = action.payload;
+      const {enabled, rosters} = action.payload;
       if (!enabled) {
         return {
           ...state,
@@ -165,7 +157,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
             ...state.bracket,
             groups: [],
           },
-          competitors: rosters.map(() => ({ id: uuidv4(), name: "" })),
+          competitors: rosters.map(() => ({id: uuidv4(), name: ""})),
         };
       }
       const splitIndex = Math.floor(rosters.length / 2);
@@ -179,20 +171,20 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
               name: "A",
               competitors:
                 rosters.length > 2
-                  ? Array.from({ length: splitIndex }, () => ({
+                  ? Array.from({length: splitIndex}, () => ({
+                    id: uuidv4(),
+                    name: "",
+                  }))
+                  : [
+                    {
                       id: uuidv4(),
                       name: "",
-                    }))
-                  : [
-                      {
-                        id: uuidv4(),
-                        name: "",
-                      },
-                      {
-                        id: uuidv4(),
-                        name: "",
-                      },
-                    ],
+                    },
+                    {
+                      id: uuidv4(),
+                      name: "",
+                    },
+                  ],
               matches: [],
             },
             {
@@ -200,20 +192,20 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
               name: "B",
               competitors:
                 rosters.length > 2
-                  ? Array.from({ length: rosters.length - splitIndex }, () => ({
+                  ? Array.from({length: rosters.length - splitIndex}, () => ({
+                    id: uuidv4(),
+                    name: "",
+                  }))
+                  : [
+                    {
                       id: uuidv4(),
                       name: "",
-                    }))
-                  : [
-                      {
-                        id: uuidv4(),
-                        name: "",
-                      },
-                      {
-                        id: uuidv4(),
-                        name: "",
-                      },
-                    ],
+                    },
+                    {
+                      id: uuidv4(),
+                      name: "",
+                    },
+                  ],
               matches: [],
             },
           ],
@@ -232,7 +224,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
           ...state.bracket,
           groups: [
             ...(state.bracket?.groups || []),
-            { id: uuidv4(), name, competitors: [], matches: [] },
+            {id: uuidv4(), name, competitors: [], matches: []},
           ],
         },
       };
@@ -245,7 +237,7 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
           ...state.bracket,
           groups: action.payload.map((group) => ({
             ...group,
-            matches: group.matches.map((match) => ({ ...match })),
+            matches: group.matches.map((match) => ({...match})),
           })),
         },
       };
@@ -269,14 +261,14 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
           ...state.bracket,
           groups: (state.bracket?.groups || []).map((group) =>
             group.id === action.payload.id
-              ? { ...group, name: action.payload.name }
+              ? {...group, name: action.payload.name}
               : group
           ),
         },
       };
 
     case "CHANGE_GROUP_COMPETITOR_COUNT": {
-      const { id, newCount, rosters } = action.payload;
+      const {id, newCount, rosters} = action.payload;
 
       if (newCount > 1000) {
         toast.error("최대 1000개 이상의 팀을 추가할 수 없습니다.");
@@ -305,12 +297,12 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
           groups: (state.bracket?.groups || []).map((group) =>
             group.id === id
               ? {
-                  ...group,
-                  competitors: Array.from({ length: newCount }, () => ({
-                    id: uuidv4(),
-                    name: "",
-                  })),
-                }
+                ...group,
+                competitors: Array.from({length: newCount}, () => ({
+                  id: uuidv4(),
+                  name: "",
+                })),
+              }
               : group
           ),
         },
@@ -373,13 +365,13 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
     case "SET_BRACKET_ID":
       return {
         ...state,
-        bracket: { ...state.bracket, id: action.payload },
+        bracket: {...state.bracket, id: action.payload},
       };
 
     case "SET_BRACKET_GROUPS_ID":
       return {
         ...state,
-        bracket: { ...state.bracket, groups: action.payload },
+        bracket: {...state.bracket, groups: action.payload},
       };
 
     case "SUFFLE_BRACKET": {
@@ -396,12 +388,12 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
         state.bracket?.groups
           ?.find((group) => group.id === groupId)
           ?.matches?.filter(
-            (match) => match.round === 1 && !match.isSettingNode
-          )
+          (match) => match.round === 1 && !match.isSettingNode
+        )
           ?.flatMap((match) => match.participants || []);
 
       // 셔플 함수 피셔-예이츠 셔플 알고리즘
-      const shuffleArray = <T,>(array: T[]): T[] => {
+      const shuffleArray = <T, >(array: T[]): T[] => {
         const arr = [...array];
         for (let i = arr.length - 1; i > 0; i--) {
           const j = Math.floor(Math.random() * (i + 1));
@@ -423,22 +415,22 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
             groups: state.bracket.groups.map((group) =>
               group.id === groupId
                 ? {
-                    ...group,
-                    matches: group.matches.map((match) => {
-                      if (match.round !== 1 || match.isSettingNode) {
-                        return match;
-                      }
-                      const participants = shuffledParticipants.slice(
-                        participantIdx,
-                        participantIdx + 2
-                      );
-                      participantIdx += 2;
-                      return {
-                        ...match,
-                        participants,
-                      };
-                    }),
-                  }
+                  ...group,
+                  matches: group.matches.map((match) => {
+                    if (match.round !== 1 || match.isSettingNode) {
+                      return match;
+                    }
+                    const participants = shuffledParticipants.slice(
+                      participantIdx,
+                      participantIdx + 2
+                    );
+                    participantIdx += 2;
+                    return {
+                      ...match,
+                      participants,
+                    };
+                  }),
+                }
                 : group
             ),
           },
@@ -453,17 +445,17 @@ const stageReducer = (state: CustomStage, action: Action): CustomStage => {
             groups: state.bracket.groups.map((group) =>
               group.id === groupId
                 ? {
-                    ...group,
-                    matches: group.matches.map((match) => {
-                      if (match.isSettingNode) {
-                        return match;
-                      }
-                      return {
-                        ...match,
-                        participants: shuffledParticipants,
-                      };
-                    }),
-                  }
+                  ...group,
+                  matches: group.matches.map((match) => {
+                    if (match.isSettingNode) {
+                      return match;
+                    }
+                    return {
+                      ...match,
+                      participants: shuffledParticipants,
+                    };
+                  }),
+                }
                 : group
             ),
           },
@@ -521,7 +513,7 @@ const checkMinimumRemainingTeams = (
   if (
     rosters.length > 2 &&
     rosters.length - groups.reduce((acc, g) => acc + g.competitors.length, 0) <
-      2
+    2
   ) {
     toast.error("최소 2개 이상의 팀이 필요합니다.");
     return false;
@@ -530,18 +522,19 @@ const checkMinimumRemainingTeams = (
 };
 
 const BracketCreate = () => {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const params = useParams();
-  const { isExpand } = useExpandStore();
+  const {isExpand} = useExpandStore();
   const stageNameRef = useRef<HTMLInputElement>(null);
   const [isCreateBracket, setIsCreateBracket] = useState<boolean>(false);
   const [stageNameError, setStageNameError] = useState<boolean>(false);
-  const { data: stageQuery } = getStage(Number(params.id));
-  const { data: stages } = getStages(
+  const {data: stageQuery} = getStage(Number(params.id));
+  const {data: stages} = getStages(
     stageQuery?.competitionId || 1,
     stageQuery?.gameTypeId || 1
   );
-  const { data: rosters } = getAllRosters({
+  const {data: rosters} = getAllRosters({
     limit: 100,
     // gameTypeId: Number(params.id),
     gameTypeId: stageQuery?.gameTypeId || 1,
@@ -553,14 +546,14 @@ const BracketCreate = () => {
     isError: isCreateBracketStructureError,
   } = createBracketStructure();
 
-  const { mutateAsync: deleteBracketMutate } = deleteBracket();
+  const {mutateAsync: deleteBracketMutate} = deleteBracket();
 
   const initialState: CustomStage = {
     id: params.id || "",
     name: stageQuery?.name?.includes("스테이지") ? "" : stageQuery?.name || "",
     competitors: [
-      { id: uuidv4(), name: "" },
-      { id: uuidv4(), name: "" },
+      {id: uuidv4(), name: ""},
+      {id: uuidv4(), name: ""},
     ],
     bracket: {
       id: undefined,
@@ -631,17 +624,17 @@ const BracketCreate = () => {
       groups:
         (stage.bracket?.groups?.length || 0) > 0
           ? stage.bracket?.groups?.map((group) => ({
-              name: group.name,
-            })) || []
+          name: group.name,
+        })) || []
           : [
-              {
-                name: "default",
-              },
-            ],
+            {
+              name: "default",
+            },
+          ],
     });
 
     if (response) {
-      dispatch({ type: "SET_BRACKET_ID", payload: response.bracketId });
+      dispatch({type: "SET_BRACKET_ID", payload: response.bracketId});
 
       if (stage.bracket?.groups?.length || 0 > 1) {
         dispatch({
@@ -688,20 +681,20 @@ const BracketCreate = () => {
           payload: (stage.bracket?.groups || []).map((group) =>
             group.id === selectedGroupId
               ? {
-                  ...group,
-                  matches: (() => {
-                    let chunkIdx = 0;
-                    return group.matches.map((match) => {
-                      if (match.isSettingNode || match.round !== 1) {
-                        // round 1이 아니면 빈 배열 할당
-                        return match;
-                      }
-                      const participants = chunkedCompetitors[chunkIdx] || [];
-                      chunkIdx += 1;
-                      return { ...match, participants };
-                    });
-                  })(),
-                }
+                ...group,
+                matches: (() => {
+                  let chunkIdx = 0;
+                  return group.matches.map((match) => {
+                    if (match.isSettingNode || match.round !== 1) {
+                      // round 1이 아니면 빈 배열 할당
+                      return match;
+                    }
+                    const participants = chunkedCompetitors[chunkIdx] || [];
+                    chunkIdx += 1;
+                    return {...match, participants};
+                  });
+                })(),
+              }
               : group
           ),
         });
@@ -711,18 +704,18 @@ const BracketCreate = () => {
           payload: (stage.bracket?.groups || []).map((group) =>
             group.id === selectedGroupId
               ? {
-                  ...group,
-                  matches: group.matches.map((match) => ({
-                    ...match,
-                    participants: competitors,
-                  })),
-                }
+                ...group,
+                matches: group.matches.map((match) => ({
+                  ...match,
+                  participants: competitors,
+                })),
+              }
               : group
           ),
         });
       }
     } else {
-      dispatch({ type: "SET_ASSIGN_COMPETITORS", payload: competitors });
+      dispatch({type: "SET_ASSIGN_COMPETITORS", payload: competitors});
     }
   };
 
@@ -742,7 +735,7 @@ const BracketCreate = () => {
   const handleDeleteBracket = () => {
     deleteBracketMutate(stage.bracket?.id || 0);
     setIsCreateBracket(false);
-    dispatch({ type: "DELETE_STAGE" });
+    dispatch({type: "DELETE_STAGE"});
     dispatch({
       type: "INIT_GROUPS",
       payload: {
@@ -750,9 +743,9 @@ const BracketCreate = () => {
         rosters:
           rosters && rosters.data
             ? rosters.data.map((roster) => ({
-                id: roster.id.toString(),
-                name: roster.team?.name || "",
-              }))
+              id: roster.id.toString(),
+              name: roster.team?.name || "",
+            }))
             : [],
       },
     });
@@ -785,11 +778,11 @@ const BracketCreate = () => {
               className="cursor-pointer"
               onClick={() => navigate("/bracket")}
             >
-              <ArrowLeftIcon className="size-4" />
+              <ArrowLeftIcon className="size-4"/>
             </Button>
             <div className="mt-8">
               <Label className="text-sm font-semibold flex items-center gap-1">
-                <Asterisk className="size-3 text-red-600" />
+                <Asterisk className="size-3 text-red-600"/>
                 스테이지명
               </Label>
               <Input
@@ -802,7 +795,7 @@ const BracketCreate = () => {
                 }`}
                 value={stage.name}
                 onChange={(e) => {
-                  dispatch({ type: "SET_STAGE_NAME", payload: e.target.value });
+                  dispatch({type: "SET_STAGE_NAME", payload: e.target.value});
                   setStageNameError(false);
                 }}
                 placeholder="ex) 예선전"
@@ -822,12 +815,12 @@ const BracketCreate = () => {
                     className="cursor-pointer"
                     variant="outline"
                     size="icon"
-                    onClick={() => dispatch({ type: "DELETE_COMPETITOR" })}
+                    onClick={() => dispatch({type: "DELETE_COMPETITOR"})}
                     disabled={
                       isCreateBracket || (stage.competitors?.length || 0) <= 2
                     }
                   >
-                    <MinusIcon className="size-4" />
+                    <MinusIcon className="size-4"/>
                   </Button>
                   <Input
                     className="w-14 h-10 text-sm font-semibold text-center"
@@ -841,15 +834,15 @@ const BracketCreate = () => {
                           rosters:
                             rosters && rosters.data
                               ? rosters.data.map((roster) => ({
-                                  id: roster.id.toString(),
-                                  name: roster.team?.name || "",
-                                }))
+                                id: roster.id.toString(),
+                                name: roster.team?.name || "",
+                              }))
                               : [],
                         },
                       })
                     }
                     onBlur={() =>
-                      dispatch({ type: "ENSURE_MINIMUM_COMPETITORS" })
+                      dispatch({type: "ENSURE_MINIMUM_COMPETITORS"})
                     }
                   />
                   <Button
@@ -863,9 +856,9 @@ const BracketCreate = () => {
                           rosters:
                             rosters && rosters.data
                               ? rosters.data.map((roster) => ({
-                                  id: roster.id.toString(),
-                                  name: roster.team?.name || "",
-                                }))
+                                id: roster.id.toString(),
+                                name: roster.team?.name || "",
+                              }))
                               : [],
                         },
                       })
@@ -878,12 +871,12 @@ const BracketCreate = () => {
                         (stage.competitors?.length || 0) >= rosters.data.length)
                     }
                   >
-                    <PlusIcon className="size-4" />
+                    <PlusIcon className="size-4"/>
                   </Button>
                 </div>
                 <div className="flex flex-row items-center gap-1 text-sm font-semibold">
                   {rosters && rosters.data && rosters.data.length === 0 ? (
-                    <RosterUnconfirmedDialog />
+                    <RosterUnconfirmedDialog/>
                   ) : (
                     <>
                       <span>확정 참가팀수 :</span>
@@ -937,7 +930,7 @@ const BracketCreate = () => {
                     checked={stage.bracket?.hasThirdPlaceMatch || false}
                     disabled={isCreateBracket}
                     onCheckedChange={() =>
-                      dispatch({ type: "TOGGLE_THIRD_PLACE" })
+                      dispatch({type: "TOGGLE_THIRD_PLACE"})
                     }
                   />
                   <Label htmlFor="third-place">3-4위전</Label>
@@ -957,9 +950,9 @@ const BracketCreate = () => {
                         rosters:
                           rosters && rosters.data
                             ? rosters.data.map((roster) => ({
-                                id: roster.id.toString(),
-                                name: roster.team?.name || "",
-                              }))
+                              id: roster.id.toString(),
+                              name: roster.team?.name || "",
+                            }))
                             : [],
                       },
                     });
@@ -988,12 +981,12 @@ const BracketCreate = () => {
                               type: "DELETE_GROUP",
                               payload:
                                 stage.bracket?.groups?.[
-                                  (stage.bracket?.groups?.length || 0) - 1
-                                ]?.id || "",
+                                (stage.bracket?.groups?.length || 0) - 1
+                                  ]?.id || "",
                             })
                           }
                         >
-                          <MinusIcon className="size-4" />
+                          <MinusIcon className="size-4"/>
                         </Button>
                         <span className="text-sm font-semibold">
                           {stage.bracket?.groups?.length || 0}
@@ -1008,25 +1001,25 @@ const BracketCreate = () => {
                               !checkMinimumRemainingTeams(
                                 rosters && rosters.data
                                   ? rosters.data.map((roster) => ({
-                                      id: roster.id.toString(),
-                                      name: roster.team?.name || "",
-                                    }))
+                                    id: roster.id.toString(),
+                                    name: roster.team?.name || "",
+                                  }))
                                   : [],
                                 stage.bracket?.groups || []
                               )
                             ) {
                               return;
                             }
-                            dispatch({ type: "ADD_GROUP" });
+                            dispatch({type: "ADD_GROUP"});
                           }}
                         >
-                          <PlusIcon className="size-4" />
+                          <PlusIcon className="size-4"/>
                         </Button>
                       </div>
                     </div>
                     <div className="flex flex-row items-center gap-1 text-sm font-semibold">
                       {rosters && rosters.data && rosters.data.length === 0 ? (
-                        <RosterUnconfirmedDialog />
+                        <RosterUnconfirmedDialog/>
                       ) : (
                         <>
                           <span>확정 참가팀 수 :</span>
@@ -1052,7 +1045,7 @@ const BracketCreate = () => {
                           onChange={(e) =>
                             dispatch({
                               type: "CHANGE_GROUP_NAME",
-                              payload: { id: group.id, name: e.target.value },
+                              payload: {id: group.id, name: e.target.value},
                             })
                           }
                           disabled={isCreateBracket}
@@ -1070,9 +1063,9 @@ const BracketCreate = () => {
                                 rosters:
                                   rosters && rosters.data
                                     ? rosters.data.map((roster) => ({
-                                        id: roster.id.toString(),
-                                        name: roster.team?.name || "",
-                                      }))
+                                      id: roster.id.toString(),
+                                      name: roster.team?.name || "",
+                                    }))
                                     : [],
                               },
                             })
@@ -1088,9 +1081,9 @@ const BracketCreate = () => {
                                   rosters:
                                     rosters && rosters.data
                                       ? rosters.data.map((roster) => ({
-                                          id: roster.id.toString(),
-                                          name: roster.team?.name || "",
-                                        }))
+                                        id: roster.id.toString(),
+                                        name: roster.team?.name || "",
+                                      }))
                                       : [],
                                 },
                               });
@@ -1112,7 +1105,7 @@ const BracketCreate = () => {
                             isCreateBracket
                           }
                         >
-                          <MinusIcon className="size-4" />
+                          <MinusIcon className="size-4"/>
                         </Button>
                         {index === (stage.bracket?.groups?.length || 0) - 1 && (
                           <Button
@@ -1125,26 +1118,26 @@ const BracketCreate = () => {
                                 !checkMinimumRemainingTeams(
                                   rosters && rosters.data
                                     ? rosters.data.map((roster) => ({
-                                        id: roster.id.toString(),
-                                        name: roster.team?.name || "",
-                                      }))
+                                      id: roster.id.toString(),
+                                      name: roster.team?.name || "",
+                                    }))
                                     : [],
                                   stage.bracket?.groups || []
                                 )
                               ) {
                                 return;
                               }
-                              dispatch({ type: "ADD_GROUP" });
+                              dispatch({type: "ADD_GROUP"});
                             }}
                           >
-                            <PlusIcon className="size-4" />
+                            <PlusIcon className="size-4"/>
                           </Button>
                         )}
                       </div>
                     ))}
                     <div className="flex flex-row items-center gap-1 text-sm font-semibold">
                       <Label className="w-12">합계</Label>
-                      <span className="w-24" />
+                      <span className="w-24"/>
                       <span className="pl-3">
                         {(stage.bracket?.groups || []).reduce(
                           (acc, g) => acc + (g.competitors?.length || 0),
@@ -1177,7 +1170,7 @@ const BracketCreate = () => {
                             })
                           }
                         >
-                          <MinusIcon className="size-4" />
+                          <MinusIcon className="size-4"/>
                         </Button>
                         <span className="text-sm font-semibold">
                           {stage.totalRounds}
@@ -1196,7 +1189,7 @@ const BracketCreate = () => {
                             });
                           }}
                         >
-                          <PlusIcon className="size-4" />
+                          <PlusIcon className="size-4"/>
                         </Button>
                       </div>
                     </div>
@@ -1216,26 +1209,26 @@ const BracketCreate = () => {
               place={
                 (stage.bracket?.groups?.length || 0) > 0
                   ? stage.bracket?.groups?.find(
-                      (group) => group.id === selectedGroupId
-                    )?.competitors?.length || 0
+                  (group) => group.id === selectedGroupId
+                )?.competitors?.length || 0
                   : stage.competitors?.length || 0
               }
               rosters={
                 rosters && rosters.data
                   ? rosters.data.map((roster) =>
-                      roster.team
-                        ? {
-                            rosterId: roster.id.toString(),
-                            name: roster.team?.name || "",
-                            isTeam: true,
-                          }
-                        : {
-                            rosterId: roster.id.toString(),
-                            name: roster.player?.user?.name || "",
-                            gameId: roster.player?.gameId || "",
-                            isTeam: false,
-                          }
-                    )
+                    roster.team
+                      ? {
+                        rosterId: roster.id.toString(),
+                        name: roster.team?.name || "",
+                        isTeam: true,
+                      }
+                      : {
+                        rosterId: roster.id.toString(),
+                        name: roster.player?.user?.name || "",
+                        gameId: roster.player?.gameId || "",
+                        isTeam: false,
+                      }
+                  )
                   : []
               }
               onAssignBracket={handleAssignBracket}

@@ -5,8 +5,8 @@
  * Esports API for Play.ID
  * OpenAPI spec version: 1.0
  */
-import type { Competition } from './competition';
-import type { GameTypeGameMode } from './gameTypeGameMode';
+import type {Competition} from './competition';
+import type {GameTypeGameMode} from './gameTypeGameMode';
 
 export interface GameType {
   competition: Competition;
@@ -31,4 +31,6 @@ export interface GameType {
    * @nullable
    */
   workspaceId: string | null;
+
+  hasBracket: boolean;
 }
