@@ -59,7 +59,7 @@ const Bracket = () => {
   const hasBracket = competitions.find(it => it.id === selectedCompetition?.id)?.gameTypes?.some(it => it.hasBracket)
 
   useEffect(() => {
-
+    
     if (selectedGame?.competitionId === selectedCompetition?.competitionId) return;
 
     if (selectedCompetition && selectedCompetition.gameTypes[0]) {

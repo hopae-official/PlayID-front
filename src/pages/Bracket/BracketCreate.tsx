@@ -17,7 +17,6 @@ import type {CreateBracketDtoFormat, InitializeBracketStructureDto,} from "@/api
 import {getAllRosters} from "@/queries/roster";
 import type {CustomControlMenuType} from "@/components/Bracket/CustomControls";
 import type {CustomMatch} from "./BracketShowingBoard";
-import {useQueryClient} from "@tanstack/react-query";
 
 export type Competitor = {
   id: string;
@@ -485,7 +484,6 @@ const checkMinimumRemainingTeams = (
 };
 
 const BracketCreate = () => {
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const params = useParams();
   const {isExpand} = useExpandStore();
