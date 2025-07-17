@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
-import { TabsList } from "@radix-ui/react-tabs";
-import { PlusIcon } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { BOARD_TYPE, type CustomMatch } from "./BracketShowingBoard";
-import { type CustomControlMenuType } from "@/components/Bracket/CustomControls";
-import { useSidebar } from "@/components/ui/sidebar";
+import {useEffect, useMemo, useState} from "react";
+import {Button} from "@/components/ui/button";
+import {Tabs, TabsContent, TabsTrigger} from "@/components/ui/tabs";
+import {TabsList} from "@radix-ui/react-tabs";
+import {PlusIcon} from "lucide-react";
+import {useLocation, useNavigate} from "react-router-dom";
+import BracketShowingBoard, {BOARD_TYPE, type CustomMatch} from "./BracketShowingBoard";
+import {type CustomControlMenuType} from "@/components/Bracket/CustomControls";
+import {useSidebar} from "@/components/ui/sidebar";
 import type {
   BracketGroup,
   BracketGroupOverviewMatchDto,
@@ -22,13 +22,12 @@ import type {
   RoundReferee,
   Stage,
 } from "@/api/model";
-import { getStage } from "@/queries/stage";
-import { deleteBracket, getBracket } from "@/queries/bracket";
-import { toast } from "sonner";
-import { getBracketGroups } from "@/queries/bracketGroups";
+import {getStage} from "@/queries/stage";
+import {deleteBracket, getBracket} from "@/queries/bracket";
+import {toast} from "sonner";
+import {getBracketGroups} from "@/queries/bracketGroups";
 import dayjs from "dayjs";
-import BracketShowingBoard from "./BracketShowingBoard";
-import { useExpandStore } from "@/stores/expand";
+import {useExpandStore} from "@/stores/expand";
 import {
   Dialog,
   DialogClose,
@@ -39,8 +38,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useSelectedStageStore } from "@/stores/stage";
-import { useUpdateEffect } from "react-use";
+import {useSelectedStageStore} from "@/stores/stage";
+import {useUpdateEffect} from "react-use";
 
 interface BracketStageProps {
   game: GameType;
@@ -51,16 +50,16 @@ interface BracketStageProps {
 }
 
 const BracketStage = ({
-  game,
-  stages,
-  onAddStage,
-  onDeleteStage,
-}: BracketStageProps) => {
+                        game,
+                        stages,
+                        onAddStage,
+                        onDeleteStage,
+                      }: BracketStageProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isExpand } = useExpandStore();
-  const { selectedStage, setSelectedStage } = useSelectedStageStore();
-  const { data: stage, isError: isStageError } = getStage(
+  const {isExpand} = useExpandStore();
+  const {selectedStage, setSelectedStage} = useSelectedStageStore();
+  const {data: stage, isError: isStageError} = getStage(
     Number(selectedStage ? selectedStage.id : stages[0].id)
   );
   const {
@@ -74,7 +73,7 @@ const BracketStage = ({
   const [selectedGroupId, setSelectedGroupId] = useState(
     bracket?.groups?.[0]?.id || 0
   );
-  const { data: bracketGroups, isError: isBracketGroupsError } =
+  const {data: bracketGroups, isError: isBracketGroupsError} =
     getBracketGroups(Number(selectedGroupId));
   const {
     mutateAsync: deleteBracketMutate,
@@ -86,7 +85,7 @@ const BracketStage = ({
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { toggleSidebar } = useSidebar();
+  const {toggleSidebar} = useSidebar();
 
   useEffect(() => {
     setOriginalStages(stages);
@@ -230,10 +229,10 @@ const BracketStage = ({
 
         // 1명만 있을 때 빈 슬롯 추가
         if (participants.length === 1) {
-          participants.push({ id: "", name: "" });
+          participants.push({id: "", name: ""});
         }
       } else if (match.participantsCount && match.participantsCount > 0) {
-        participants = Array.from({ length: match.participantsCount }, () => ({
+        participants = Array.from({length: match.participantsCount}, () => ({
           id: "",
           name: "",
         }));
@@ -285,8 +284,8 @@ const BracketStage = ({
                   name: participant?.roster.player
                     ? participant?.roster.player.user.name || ""
                     : participant?.roster.team
-                    ? participant?.roster.team?.name || ""
-                    : "",
+                      ? participant?.roster.team?.name || ""
+                      : "",
                   point: stat.statPayload?.point as number,
                   ranking: stat.statPayload?.ranking as number,
                 };
@@ -425,7 +424,7 @@ const BracketStage = ({
               size="icon"
               onClick={handleAddStage}
             >
-              <PlusIcon className="size-4" />
+              <PlusIcon className="size-4"/>
             </Button>
           </TabsList>
         )}
@@ -434,7 +433,8 @@ const BracketStage = ({
           className="flex h-full flex-col items-center rounded-b-md rounded-tr-md"
         >
           {isLoading && (
-            <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md" />
+            <div
+              className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md"/>
           )}
 
           {!isLoading && (
@@ -453,13 +453,10 @@ const BracketStage = ({
                   onDeleteStage={handleDeleteStage}
                 />
               ) : (
-                <div className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md">
+                <div
+                  className="flex w-full h-full flex-col items-center justify-center gap-2 bg-zinc-900 rounded-b-md rounded-tr-md">
                   <div className="text-2xl font-semibold">
                     대진표를 생성하시겠어요?
-                  </div>
-                  <div className="text-sm text-muted-foreground mt-2">
-                    마지막 로스터 확정:{" "}
-                    {game.isRosterConfirmed ? "확정" : "미확정"}
                   </div>
                   <Button
                     className="mt-6 cursor-pointer"
@@ -516,15 +513,15 @@ const BracketStage = ({
                         onClick={
                           suppressEdit
                             ? () => {
-                                deleteBracketMutate(
-                                  Number(stage?.brackets?.[0]?.id)
-                                );
-                                setOpenDeleteDialog(false);
-                              }
+                              deleteBracketMutate(
+                                Number(stage?.brackets?.[0]?.id)
+                              );
+                              setOpenDeleteDialog(false);
+                            }
                             : () => {
-                                handleDeleteStage(Number(selectedStage?.id));
-                                setOpenDeleteDialog(false);
-                              }
+                              handleDeleteStage(Number(selectedStage?.id));
+                              setOpenDeleteDialog(false);
+                            }
                         }
                       >
                         삭제
