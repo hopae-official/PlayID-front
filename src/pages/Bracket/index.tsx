@@ -13,6 +13,8 @@ import {useSelectedGameStore} from "@/stores/game";
 import CompetitionSelector from "@/components/CompetitionSelector";
 import {Button} from "@/components/ui/button";
 import {useLocation} from "react-router-dom";
+import {useMutation, useQueryClient} from "@tanstack/react-query";
+import {customInstance} from "@/lib/axios.ts";
 
 export type Sheet = {
   id: string;
@@ -24,6 +26,16 @@ export type Game = {
   name: string;
   sheets: Sheet[];
 };
+
+const useGenerateRosterMutation = () => {
+  return useMutation({
+    mutationFn: async ({competitionId}: { competitionId: string }) => customInstance({
+      method: 'post',
+      url: '/roster/competition',
+      data: {competitionId}
+    })
+  })
+}
 
 const Bracket = () => {
   const {isExpand} = useExpandStore();
@@ -39,6 +51,9 @@ const Bracket = () => {
   const games: GameType[] = selectedCompetition?.gameTypes || [];
 
   const location = useLocation();
+
+  const queryClient = useQueryClient();
+  const {mutateAsync: asyncGenerateRosterMutation, isPending: isPendingGenerateRoster} = useGenerateRosterMutation()
 
   useEffect(() => {
     if (selectedGame) return;
@@ -130,7 +145,20 @@ const Bracket = () => {
               variant="outline"
               size="lg"
               className="ml-auto"
-              disabled={false}
+              disabled={isPendingGenerateRoster}
+              onClick={async () => {
+                try {
+                  if (selectedCompetition?.competitionId) {
+                    await asyncGenerateRosterMutation({competitionId: selectedCompetition?.competitionId});
+                    await queryClient.invalidateQueries({
+                      queryKey: ["competitionsMy"]
+                    })
+                  }
+                } catch {
+                  // error toast
+                }
+
+              }}
             >
               로스터 생성
             </Button> : null}
