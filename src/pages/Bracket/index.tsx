@@ -15,6 +15,7 @@ import {Button} from "@/components/ui/button";
 import {useLocation} from "react-router-dom";
 import {useMutation, useQueryClient} from "@tanstack/react-query";
 import {customInstance} from "@/lib/axios.ts";
+import {toast} from "sonner";
 
 export type Sheet = {
   id: string;
@@ -154,8 +155,9 @@ const Bracket = () => {
                       queryKey: ["competitionsMy"]
                     })
                   }
-                } catch {
-                  // error toast
+                } catch (error) {
+                  toast.error("로스터 생성에 실패했습니다. 다시 시도해주세요.");
+                  console.error("Failed to generate roster:", error);
                 }
 
               }}

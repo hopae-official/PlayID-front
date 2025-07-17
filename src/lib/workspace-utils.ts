@@ -1,14 +1,18 @@
 import type {Competition, Workspace} from '@/api/model';
 import {customInstance} from "@/lib/axios.ts";
 import {useQuery} from "@tanstack/react-query";
+import {useAuth} from "@clerk/clerk-react";
 
 export const useWorkSpaceQuery = () => {
+  const {isSignedIn} = useAuth()
+
   return useQuery({
     queryKey: ['workspaces'],
     queryFn: async () => {
       const response = await customInstance<{ data: Workspace[] }>({method: 'GET', url: '/organization/workspaces/my'})
       return response?.data ?? []
-    }
+    },
+    enabled: !!isSignedIn
   })
 }
 
