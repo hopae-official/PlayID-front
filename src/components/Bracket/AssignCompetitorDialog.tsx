@@ -60,6 +60,7 @@ export type CustomRoster = {
   rosterId: string;
   name: string;
   gameId?: string;
+  dateOfBirth?: string;
   ranking?: string;
   isTeam?: boolean;
 };
@@ -170,8 +171,8 @@ const getColumns = (
 
   if (!isTeam) {
     baseColumns.push({
-      accessorKey: "gameId",
-      header: "게임ID",
+      accessorKey: "dateOfBirth",
+      header: "생년월일",
       cell: ({ row }: { row: Row<CustomRoster> }) => {
         const isDisabled =
           selectedRosterIds.length > 0 &&
@@ -187,7 +188,7 @@ const getColumns = (
               isDisabled ? "이미 다른 그룹에 배정된 선수입니다" : undefined
             }
           >
-            {row.getValue("gameId")}
+            {row.getValue("dateOfBirth")}
           </div>
         );
       },

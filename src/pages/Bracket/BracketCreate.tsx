@@ -1187,6 +1187,7 @@ const BracketCreate = () => {
                         rosterId: roster.id.toString(),
                         name: roster.player?.user?.name || "",
                         gameId: roster.player?.gameId || "",
+                        dateOfBirth: roster.player?.user?.dateOfBirth || "",
                         isTeam: false,
                       }
                   )
