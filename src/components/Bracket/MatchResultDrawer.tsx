@@ -650,12 +650,16 @@ const MatchResultDrawer = ({
                                     <DialogTitle>스크린샷 미리보기</DialogTitle>
                                 </DialogHeader>
                                 {previewUrls[0] && (
-                                    <img
-                                        src={previewUrls[0]!}
-                                        alt="스크린샷 미리보기"
-                                        className="mt-2 rounded-md border w-full"
-                                    />
-                                )}
+                                    () => {
+                                        const src = previewUrls[0]?.startsWith(API_HOST) ? `${API_HOST}/files${previewUrls[0]?.split(API_HOST)[1]}` : previewUrls[0]
+
+                                        return <img
+                                            src={src}
+                                            alt="스크린샷 미리보기"
+                                            className="mt-2 rounded-md border w-full"
+                                        />
+                                    }
+                                )()}
                             </DialogContent>
                         </Dialog>
                         <Input
