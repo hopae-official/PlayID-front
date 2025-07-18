@@ -1343,7 +1343,7 @@ const MatchNode = (props: any) => {
                                         key={referee.referee.id}
                                         value={referee.referee.id.toString()}
                                     >
-                                        {referee.referee.firstName} {referee.referee.lastName}
+                                        {referee.referee.lastName}{referee.referee.firstName}
                                     </SelectItem>
                                 ))}
                         </SelectContent>
