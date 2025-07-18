@@ -869,7 +869,7 @@ const MatchResultDrawer = ({
                     </div>
                 </div>
                 <DrawerFooter className="p-6">
-                    {selectedGame?.gameId === "fco" && (
+                    {selectedGame?.name === "fconline" && (
                         <Button
                             size="lg"
                             variant="outline"
