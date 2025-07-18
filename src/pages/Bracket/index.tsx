@@ -18,171 +18,187 @@ import {customInstance} from "@/lib/axios.ts";
 import {toast} from "sonner";
 
 export type Sheet = {
-  id: string;
-  name: string;
+    id: string;
+    name: string;
 };
 
 export type Game = {
-  id: string;
-  name: string;
-  sheets: Sheet[];
+    id: string;
+    name: string;
+    sheets: Sheet[];
 };
 
 const useGenerateRosterMutation = () => {
-  return useMutation({
-    mutationFn: async ({competitionId}: { competitionId: string }) => customInstance({
-      method: 'post',
-      url: '/roster/competition',
-      data: {competitionId}
+    return useMutation({
+        mutationFn: async ({competitionId}: { competitionId: string }) => customInstance({
+            method: 'post',
+            url: '/roster/competition',
+            data: {competitionId}
+        })
     })
-  })
 }
 
+
+export const gameNames: { [key: string]: string } = {
+    lol: '리그 오브 레전드',
+    val: '발로란트',
+    fconline: 'FC 온라인',
+    brs: '브롤스타즈',
+    krt: '카드라이더-드리프트',
+    sfv: '스트리트파이터 6',
+    pgm: 'PUBG 모바일',
+    ert: '이터널 리턴',
+    kof: '킹오브 파이터즈',
+    efo: '이풋볼',
+    pku: '포켓몬 유나이트',
+};
+
+
 const Bracket = () => {
-  const {isExpand} = useExpandStore();
-  const {selectedGame, setSelectedGame} = useSelectedGameStore();
-  const {selectedCompetition, competitions} = useCompetition();
-  const {data: stageDatas} = getStages(
-    selectedCompetition?.id || 0,
-    selectedGame?.id || 0
-  );
-  const {mutate: createStageMutate} = createStage();
-  const {mutate: deleteStageMutate} = deleteStage();
-  const [stages, setStages] = useState<Stage[]>([]);
-  const games: GameType[] = selectedCompetition?.gameTypes || [];
+    const {isExpand} = useExpandStore();
+    const {selectedGame, setSelectedGame} = useSelectedGameStore();
+    const {selectedCompetition, competitions} = useCompetition();
+    const {data: stageDatas} = getStages(
+        selectedCompetition?.id || 0,
+        selectedGame?.id || 0
+    );
+    const {mutate: createStageMutate} = createStage();
+    const {mutate: deleteStageMutate} = deleteStage();
+    const [stages, setStages] = useState<Stage[]>([]);
+    const games: GameType[] = selectedCompetition?.gameTypes || [];
 
-  const location = useLocation();
+    const location = useLocation();
 
-  const queryClient = useQueryClient();
-  const {mutateAsync: asyncGenerateRosterMutation, isPending: isPendingGenerateRoster} = useGenerateRosterMutation()
+    const queryClient = useQueryClient();
+    const {mutateAsync: asyncGenerateRosterMutation, isPending: isPendingGenerateRoster} = useGenerateRosterMutation()
 
-  const hasBracket = competitions.find(it => it.id === selectedCompetition?.id)?.gameTypes?.some(it => it.hasBracket)
+    const hasBracket = competitions.find(it => it.id === selectedCompetition?.id)?.gameTypes?.some(it => it.hasBracket)
 
-  useEffect(() => {
-    
-    if (selectedGame?.competitionId === selectedCompetition?.competitionId) return;
+    useEffect(() => {
 
-    if (selectedCompetition && selectedCompetition.gameTypes[0]) {
-      setSelectedGame(selectedCompetition.gameTypes[0]);
-    }
-  }, [selectedCompetition]);
+        if (selectedGame?.competitionId === selectedCompetition?.competitionId) return;
 
-  useEffect(() => {
-    if (!stageDatas) return;
+        if (selectedCompetition && selectedCompetition.gameTypes[0]) {
+            setSelectedGame(selectedCompetition.gameTypes[0]);
+        }
+    }, [selectedCompetition]);
 
-    if (stageDatas?.length === 0) {
-      createStageMutate({
-        competitionId: selectedCompetition?.id || 0,
-        gameTypeId: selectedGame?.id || 0,
-        name: "스테이지 1",
-      });
-    } else {
-      setStages(stageDatas);
-    }
-  }, [stageDatas]);
+    useEffect(() => {
+        if (!stageDatas) return;
 
-  const handleAddStage = () => {
-    createStageMutate({
-      competitionId: selectedCompetition?.id || 0,
-      gameTypeId: selectedGame?.id || 0,
-      name: `스테이지 ${stages.length + 1}`,
-    });
-  };
+        if (stageDatas?.length === 0) {
+            createStageMutate({
+                competitionId: selectedCompetition?.id || 0,
+                gameTypeId: selectedGame?.id || 0,
+                name: "스테이지 1",
+            });
+        } else {
+            setStages(stageDatas);
+        }
+    }, [stageDatas]);
 
-  const handleDeleteStage = (id: number) => {
-    deleteStageMutate(id);
-  };
+    const handleAddStage = () => {
+        createStageMutate({
+            competitionId: selectedCompetition?.id || 0,
+            gameTypeId: selectedGame?.id || 0,
+            name: `스테이지 ${stages.length + 1}`,
+        });
+    };
 
-  return (
-    <SidebarInset>
-      <header
-        className={`flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 ${
-          isExpand ? "hidden" : "block"
-        }`}
-      >
-        <div className="flex items-center gap-2 px-4">
-          <SidebarTrigger className="-ml-1"/>
-          <Separator
-            orientation="vertical"
-            className="mr-2 data-[orientation=vertical]:h-4"
-          />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbPage>
-                  <CompetitionSelector/>
-                </BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        </div>
-      </header>
-      <div
-        className={`flex h-full flex-1 flex-col gap-4 p-4 ${
-          isExpand ? "pt-4" : "pt-0"
-        }`}
-      >
-        <Tabs
-          value={selectedGame?.id.toString() || ""}
-          className="h-full"
-          onValueChange={(value) => {
-            setSelectedGame(
-              games.find((game) => game.id.toString() === value) || games[0]
-            );
-          }}
-        >
-          <div className={`flex items-center gap-2 mb-6 ${isExpand ? "hidden" : "flex"}`}>
-            <TabsList
-              className="w-fit bg-zinc-800 rounded-md p-1"
+    const handleDeleteStage = (id: number) => {
+        deleteStageMutate(id);
+    };
+
+    return (
+        <SidebarInset>
+            <header
+                className={`flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 ${
+                    isExpand ? "hidden" : "block"
+                }`}
             >
-              {games.map((game) => (
-                <TabsTrigger
-                  className="cursor-pointer dark:data-[state=active]:bg-zinc-950"
-                  key={game.id}
-                  value={game.id.toString()}
+                <div className="flex items-center gap-2 px-4">
+                    <SidebarTrigger className="-ml-1"/>
+                    <Separator
+                        orientation="vertical"
+                        className="mr-2 data-[orientation=vertical]:h-4"
+                    />
+                    <Breadcrumb>
+                        <BreadcrumbList>
+                            <BreadcrumbItem>
+                                <BreadcrumbPage>
+                                    <CompetitionSelector/>
+                                </BreadcrumbPage>
+                            </BreadcrumbItem>
+                        </BreadcrumbList>
+                    </Breadcrumb>
+                </div>
+            </header>
+            <div
+                className={`flex h-full flex-1 flex-col gap-4 p-4 ${
+                    isExpand ? "pt-4" : "pt-0"
+                }`}
+            >
+                <Tabs
+                    value={selectedGame?.id.toString() || ""}
+                    className="h-full"
+                    onValueChange={(value) => {
+                        setSelectedGame(
+                            games.find((game) => game.id.toString() === value) || games[0]
+                        );
+                    }}
                 >
-                  {game.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {location.pathname.includes("bracket") ? <Button
-              variant="outline"
-              size="lg"
-              className="ml-auto"
-              disabled={!selectedCompetition || hasBracket || isPendingGenerateRoster}
-              onClick={async () => {
-                try {
-                  if (selectedCompetition?.competitionId) {
-                    await asyncGenerateRosterMutation({competitionId: selectedCompetition?.competitionId});
-                    toast.success("로스터를 생성했습니다.");
-                    await queryClient.invalidateQueries({
-                      queryKey: ["competitionsMy"]
-                    })
-                  }
-                } catch (error) {
-                  toast.error("로스터 생성에 실패했습니다. 다시 시도해주세요.");
-                  console.error("Failed to generate roster:", error);
-                }
+                    <div className={`flex items-center gap-2 mb-6 ${isExpand ? "hidden" : "flex"}`}>
+                        <TabsList
+                            className="w-fit bg-zinc-800 rounded-md p-1"
+                        >
+                            {games.map((game) => (
+                                <TabsTrigger
+                                    className="cursor-pointer dark:data-[state=active]:bg-zinc-950"
+                                    key={game.id}
+                                    value={game.id.toString()}
+                                >
+                                    {gameNames[game.name] ?? game.name}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+                        {location.pathname.includes("bracket") ? <Button
+                            variant="outline"
+                            size="lg"
+                            className="ml-auto"
+                            disabled={!selectedCompetition || hasBracket || isPendingGenerateRoster}
+                            onClick={async () => {
+                                try {
+                                    if (selectedCompetition?.competitionId) {
+                                        await asyncGenerateRosterMutation({competitionId: selectedCompetition?.competitionId});
+                                        toast.success("로스터를 생성했습니다.");
+                                        await queryClient.invalidateQueries({
+                                            queryKey: ["competitionsMy"]
+                                        })
+                                    }
+                                } catch (error) {
+                                    toast.error("로스터 생성에 실패했습니다. 다시 시도해주세요.");
+                                    console.error("Failed to generate roster:", error);
+                                }
 
-              }}
-            >
-              로스터 생성
-            </Button> : null}
-          </div>
-          {selectedGame && stages.length > 0 && (
-            <TabsContent value={selectedGame.id.toString()}>
-              <BracketStage
-                game={selectedGame}
-                stages={stages}
-                onAddStage={handleAddStage}
-                onDeleteStage={handleDeleteStage}
-              />
-            </TabsContent>
-          )}
-        </Tabs>
-      </div>
-    </SidebarInset>
-  );
+                            }}
+                        >
+                            로스터 생성
+                        </Button> : null}
+                    </div>
+                    {selectedGame && stages.length > 0 && (
+                        <TabsContent value={selectedGame.id.toString()}>
+                            <BracketStage
+                                game={selectedGame}
+                                stages={stages}
+                                onAddStage={handleAddStage}
+                                onDeleteStage={handleDeleteStage}
+                            />
+                        </TabsContent>
+                    )}
+                </Tabs>
+            </div>
+        </SidebarInset>
+    );
 };
 
 export default Bracket;
