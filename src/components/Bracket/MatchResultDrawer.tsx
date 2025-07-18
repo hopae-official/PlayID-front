@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
-import { ClipboardPlus, Paperclip, Trash2 } from "lucide-react";
+import { ClipboardPlus, Paperclip, Edit } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -482,11 +482,12 @@ const MatchResultDrawer = ({
                 </span>
               </div>
               {screenshots[idx] && (
-                <Trash2
-                  className="w-4 h-4 cursor-pointer text-red-500"
+                <Edit
+                  className="w-4 h-4 cursor-pointer text-blue-500"
                   onClick={(e) => {
                     e.preventDefault();
-                    handleScreenshotChange(idx, null);
+                    e.stopPropagation();
+                    document.getElementById(`screenshot-upload-${idx}`)?.click();
                   }}
                 />
               )}
@@ -505,18 +506,16 @@ const MatchResultDrawer = ({
             )}
           </DialogContent>
         </Dialog>
-        {!screenshots[idx] && (
-          <Input
-            id={`screenshot-upload-${idx}`}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null;
-              handleScreenshotChange(idx, file);
-            }}
-          />
-        )}
+        <Input
+          id={`screenshot-upload-${idx}`}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0] || null;
+            handleScreenshotChange(idx, file);
+          }}
+        />
       </div>
     </div>
   );
@@ -640,11 +639,12 @@ const MatchResultDrawer = ({
                     </span>
                   </div>
                   {screenshots[0] && (
-                    <Trash2
-                      className="w-4 h-4 cursor-pointer text-red-500"
+                    <Edit
+                      className="w-4 h-4 cursor-pointer text-blue-500"
                       onClick={(e) => {
                         e.preventDefault();
-                        handleScreenshotChange(0, null);
+                        e.stopPropagation();
+                        document.getElementById(`screenshot-upload-0`)?.click();
                       }}
                     />
                   )}
@@ -663,18 +663,16 @@ const MatchResultDrawer = ({
                 )}
               </DialogContent>
             </Dialog>
-            {!screenshots[0] && (
-              <Input
-                id={`screenshot-upload-0`}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  handleScreenshotChange(0, file);
-                }}
-              />
-            )}
+            <Input
+              id={`screenshot-upload-0`}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                handleScreenshotChange(0, file);
+              }}
+            />
           </>
         ),
     [matchResultList, previewDialogIdx, screenshots, previewUrls]
