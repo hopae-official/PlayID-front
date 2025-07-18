@@ -1360,13 +1360,13 @@ const MatchNode = (props: any) => {
                         refereeData?.find(
                             (r: RefereeCompetition) =>
                                 r.referee.id.toString() === referee
-                        )?.referee.firstName
+                        )?.referee.lastName
                     }
                       {
                           refereeData?.find(
                               (r: RefereeCompetition) =>
                                   r.referee.id.toString() === referee
-                          )?.referee.lastName
+                          )?.referee.firstName
                       }
                   </span>
                                     <XIcon
