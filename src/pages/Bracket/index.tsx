@@ -44,7 +44,7 @@ export const gameNames: { [key: string]: string } = {
     val: '발로란트',
     fconline: 'FC 온라인',
     brs: '브롤스타즈',
-    krt: '카드라이더-드리프트',
+    krt: '카트라이더-드리프트',
     sfv: '스트리트파이터 6',
     pgm: 'PUBG 모바일',
     ert: '이터널 리턴',
